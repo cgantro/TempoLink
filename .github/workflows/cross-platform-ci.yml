@@ -1,0 +1,48 @@
+name: Cross Platform Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ cmake
+
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja
+
+      - name: Install Dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ninja --yes --no-progress
+
+      - name: Configure (CLI client + server)
+        run: >
+          cmake -S . -B out/build/ci -G Ninja
+          -DTEMPOLINK_BUILD_SERVER=ON
+          -DTEMPOLINK_BUILD_CLIENT=ON
+          -DTEMPOLINK_ENABLE_BOOST=OFF
+          -DTEMPOLINK_ENABLE_OPUS=OFF
+
+      - name: Build
+        run: cmake --build out/build/ci --config Debug

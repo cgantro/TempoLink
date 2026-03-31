@@ -1,0 +1,188 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base-ninja",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "base-win-ninja",
+      "hidden": true,
+      "inherits": "base-ninja",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "base-linux-ninja",
+      "hidden": true,
+      "inherits": "base-ninja",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "base-macos-ninja",
+      "hidden": true,
+      "inherits": "base-ninja",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "server-debug",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TEMPOLINK_BUILD_SERVER": "ON",
+        "TEMPOLINK_BUILD_CLIENT": "OFF"
+      }
+    },
+    {
+      "name": "client-debug",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TEMPOLINK_BUILD_SERVER": "OFF",
+        "TEMPOLINK_BUILD_CLIENT": "ON"
+      }
+    },
+    {
+      "name": "full-debug",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TEMPOLINK_BUILD_SERVER": "ON",
+        "TEMPOLINK_BUILD_CLIENT": "ON",
+        "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF"
+      }
+    },
+    {
+      "name": "full-debug-with-codecs",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TEMPOLINK_BUILD_SERVER": "ON",
+        "TEMPOLINK_BUILD_CLIENT": "ON",
+        "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF",
+        "TEMPOLINK_ENABLE_BOOST": "ON",
+        "TEMPOLINK_ENABLE_OPUS": "ON"
+      }
+    },
+    {
+      "name": "juce-client-debug",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TEMPOLINK_BUILD_SERVER": "OFF",
+        "TEMPOLINK_BUILD_CLIENT": "OFF",
+        "TEMPOLINK_BUILD_JUCE_CLIENT": "ON",
+        "TEMPOLINK_FETCH_JUCE": "ON"
+      }
+    },
+    {
+      "name": "server-debug-win",
+      "inherits": [
+        "base-win-ninja",
+        "server-debug"
+      ]
+    },
+    {
+      "name": "server-debug-linux",
+      "inherits": [
+        "base-linux-ninja",
+        "server-debug"
+      ]
+    },
+    {
+      "name": "server-debug-macos",
+      "inherits": [
+        "base-macos-ninja",
+        "server-debug"
+      ]
+    },
+    {
+      "name": "client-debug-win",
+      "inherits": [
+        "base-win-ninja",
+        "client-debug"
+      ]
+    },
+    {
+      "name": "client-debug-linux",
+      "inherits": [
+        "base-linux-ninja",
+        "client-debug"
+      ]
+    },
+    {
+      "name": "client-debug-macos",
+      "inherits": [
+        "base-macos-ninja",
+        "client-debug"
+      ]
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "server-debug",
+      "configurePreset": "server-debug"
+    },
+    {
+      "name": "client-debug",
+      "configurePreset": "client-debug"
+    },
+    {
+      "name": "full-debug",
+      "configurePreset": "full-debug"
+    },
+    {
+      "name": "full-debug-with-codecs",
+      "configurePreset": "full-debug-with-codecs"
+    },
+    {
+      "name": "juce-client-debug",
+      "configurePreset": "juce-client-debug"
+    },
+    {
+      "name": "server-debug-win",
+      "configurePreset": "server-debug-win"
+    },
+    {
+      "name": "server-debug-linux",
+      "configurePreset": "server-debug-linux"
+    },
+    {
+      "name": "server-debug-macos",
+      "configurePreset": "server-debug-macos"
+    },
+    {
+      "name": "client-debug-win",
+      "configurePreset": "client-debug-win"
+    },
+    {
+      "name": "client-debug-linux",
+      "configurePreset": "client-debug-linux"
+    },
+    {
+      "name": "client-debug-macos",
+      "configurePreset": "client-debug-macos"
+    }
+  ]
+}

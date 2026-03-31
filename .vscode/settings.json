@@ -1,0 +1,14 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.useVsDeveloperEnvironment": "always",
+  "cmake.configureOnOpen": false,
+  "cmake.buildBeforeRun": false,
+  "cmake.parallelJobs": 8,
+  "cmake.buildToolArgs": [],
+  "cmake.buildArgs": [
+    "--parallel"
+  ],
+  "cmake.preferredGenerators": [
+    "Ninja"
+  ]
+}

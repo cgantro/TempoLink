@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cmake: configure (juce-client-debug)",
+      "type": "shell",
+      "command": "cmake",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "args": [
+        "--preset",
+        "juce-client-debug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "cmake: build tempolink_juce_client",
+      "type": "shell",
+      "command": "cmake",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "args": [
+        "--build",
+        "--preset",
+        "juce-client-debug",
+        "--target",
+        "tempolink_juce_client",
+        "--parallel"
+      ],
+      "dependsOn": [
+        "cmake: configure (juce-client-debug)"
+      ],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "cmake: configure (full-debug)",
+      "type": "shell",
+      "command": "cmake",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "args": [
+        "--preset",
+        "full-debug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "cmake: build tempolink_client_console",
+      "type": "shell",
+      "command": "cmake",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "args": [
+        "--build",
+        "--preset",
+        "full-debug",
+        "--target",
+        "tempolink_client_console",
+        "--parallel"
+      ],
+      "dependsOn": [
+        "cmake: configure (full-debug)"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}

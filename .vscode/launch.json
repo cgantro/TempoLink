@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TempoLink: JUCE Client UI (juce-client-debug)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/out/build/juce-client-debug/Cpp/Client/JuceApp/tempolink_juce_client_artefacts/Debug/TempoLink JUCE Client.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "cmake: build tempolink_juce_client"
+    },
+    {
+      "name": "TempoLink: Console Client (full-debug)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/out/build/full-debug/Cpp/Client/RealtimeCore/tempolink_client_console.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false,
+      "preLaunchTask": "cmake: build tempolink_client_console"
+    }
+  ]
+}

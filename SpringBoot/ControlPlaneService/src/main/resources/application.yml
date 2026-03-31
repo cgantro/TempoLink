@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: control-plane-service
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+tempolink:
+  network:
+    stun-urls:
+      - "stun:stun.l.google.com:19302"
+    turn-enabled: false
+    turn-urls: []
+    turn-username: ""
+    turn-password: ""
+    credential-ttl-seconds: 600

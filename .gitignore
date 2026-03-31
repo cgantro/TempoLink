@@ -1,0 +1,12 @@
+out/
+build/
+.idea/
+.vs/
+*.user
+*.vcxproj.user
+.gradle/
+SpringBoot/ControlPlaneService/build/
+SpringBoot/ControlPlaneService/bin/
+SpringBoot/ControlPlaneService/.gradle/
+
+.env
