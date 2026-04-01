@@ -108,19 +108,23 @@
   "buildPresets": [
     {
       "name": "client-debug",
-      "configurePreset": "client-debug"
+      "configurePreset": "client-debug",
+      "jobs": 0
     },
     {
       "name": "full-debug",
-      "configurePreset": "full-debug"
+      "configurePreset": "full-debug",
+      "jobs": 0
     },
     {
       "name": "full-debug-with-codecs",
-      "configurePreset": "full-debug-with-codecs"
+      "configurePreset": "full-debug-with-codecs",
+      "jobs": 0
     },
     {
       "name": "juce-client-debug",
-      "configurePreset": "juce-client-debug"
+      "configurePreset": "juce-client-debug",
+      "jobs": 0
     },
     {
       "name": "client-debug-win",

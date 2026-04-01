@@ -16,18 +16,49 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Install Ninja
+        if: runner.os != 'macOS'
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            choco install ninja --yes --no-progress
+          elif [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y ninja-build
+          fi
+        shell: bash
+
+      - name: Install macOS Dependencies
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Install Ubuntu Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libjack-jackd2-dev \
+            libfreetype-dev libx11-dev libxcomposite-dev libxcursor-dev \
+            libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+            libwebkit2gtk-4.1-dev libglu1-mesa-dev mesa-common-dev
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
         run: cmake --preset juce-client-debug
 
       - name: Build C++ Client
-        run: cmake --build --preset juce-client-debug
+        run: cmake --build --preset juce-client-debug --parallel
 
-      - name: Create .env.deploy from Secrets
+      - name: Create .env.deploy
         run: |
           echo "TEMPOLINK_CONTROL_PLANE_BASE_URL=${{ secrets.TEMPOLINK_CONTROL_PLANE_BASE_URL }}" > .env.deploy
           echo "TEMPOLINK_CONTROL_PLANE_HOST=${{ secrets.TEMPOLINK_CONTROL_PLANE_HOST }}" >> .env.deploy
@@ -40,40 +71,68 @@ jobs:
           echo "TEMPOLINK_BRIDGE_HOST=${{ secrets.TEMPOLINK_BRIDGE_HOST }}" >> .env.deploy
           echo "TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT }}" >> .env.deploy
           echo "TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT }}" >> .env.deploy
+        shell: bash
 
-      - name: Build Installer (Inno Setup)
+      - name: Package Windows (Inno Setup)
+        if: runner.os == 'Windows'
         run: |
           $ExePath = Get-ChildItem -Path "out/build/juce-client-debug" -Filter *tempolink_juce_client.exe -Recurse | Select-Object -First 1 -ExpandProperty FullName
           & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DSourceExe=$ExePath" "/DSourceEnv=$PWD\.env.deploy" "Cpp\Client\Installer\TempoLink.iss"
 
-      - name: Upload Build Artifacts
+      - name: Package (CPack)
+        if: runner.os != 'Windows'
+        run: |
+          cd out/build/juce-client-debug
+          cpack -C Debug
+        shell: bash
+
+      - name: Organize Artifacts
+        run: |
+          mkdir -p final-artifacts
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            cp Output/TempoLink-Installer.exe final-artifacts/
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            cp out/build/juce-client-debug/TempoLink-Installer.pkg final-artifacts/
+          elif [ "$RUNNER_OS" == "Linux" ]; then
+            cp out/build/juce-client-debug/TempoLink-Installer.deb final-artifacts/
+          fi
+        shell: bash
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-client-binary
-          path: "Output/TempoLink-Installer.exe"
+          name: client-installer-${{ matrix.os }}
+          path: final-artifacts/*
 
   release:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # GitHub Release 생성을 위한 권한 부여
+      contents: write
     steps:
-      - name: Download Build Artifacts
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-client-binary
-          path: release-artifacts/
+          path: all-artifacts/
 
-      - name: Create Target Directory on Server
+      - name: Collect Installers
+        run: |
+          mkdir -p release-artifacts
+          find all-artifacts/ -type f -name "TempoLink-Installer.*" -exec cp {} release-artifacts/ \;
+        shell: bash
+
+      - name: Sync to Download Hub
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          script: mkdir -p /home/${{ secrets.SERVER_USER }}/downloads
+          script: |
+            mkdir -p /home/${{ secrets.SERVER_USER }}/downloads
+            # Wait for file transfers (handled by SCP next)
 
-      - name: SCP Transfer to Server
+      - name: SCP Transfer
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
