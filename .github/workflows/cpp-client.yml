@@ -213,9 +213,24 @@ jobs:
               exit 1
           }
 
-          Write-Host "Using executable for installer: $ExePath"
+          $ExeName = Split-Path $ExePath -Leaf
+          Write-Host "Using executable for installer: $ExePath ($ExeName)"
 
-          & $ISCC "/DSourceExe=$ExePath" "/DSourceEnv=$PWD/.env.deploy" "Cpp/Client/Installer/TempoLink.iss"
+          # --- 스테이징(Staging) 디렉터리 생성 ---
+          $StagingDir = "$PWD\staging-win"
+          New-Item -ItemType Directory -Force -Path $StagingDir | Out-Null
+
+          # 1. 실행 파일 복사
+          Copy-Item $ExePath -Destination $StagingDir\
+
+          # 2. 의존성 DLL 복사 (OpenSSL 등)
+          # 빌드 결과물(out) 디렉터리 하위의 모든 dll을 스테이징 폴더로 모읍니다.
+          Get-ChildItem -Path "out" -Recurse -Filter *.dll | Copy-Item -Destination $StagingDir\ -ErrorAction SilentlyContinue
+
+          # 3. 환경변수 파일 복사 (.env.deploy)
+          Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy"
+
+          & $ISCC "/DAppDir=$StagingDir" "/DExeName=$ExeName" "Cpp/Client/Installer/TempoLink.iss"
 
       - name: Package (CPack)
         if: runner.os != 'Windows'
