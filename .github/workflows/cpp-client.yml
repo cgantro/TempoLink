@@ -7,14 +7,14 @@ on:
       - "Cpp/**"
       - "CMakeLists.txt"
       - "CMakePresets.json"
-      - ".github/workflows/**"
+      - ".github/workflows/cpp-client.yml"
   pull_request:
     branches: ["dev", "main"]
     paths:
       - "Cpp/**"
       - "CMakeLists.txt"
       - "CMakePresets.json"
-      - ".github/workflows/**"
+      - ".github/workflows/cpp-client.yml"
 
 jobs:
   build:
@@ -178,6 +178,15 @@ jobs:
       # -----------------------------
       # Package
       # -----------------------------
+      - name: Debug Windows build outputs
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Write-Host "=== Search .exe under current directory ==="
+          Get-ChildItem -Path "." -Recurse -Filter *.exe | ForEach-Object {
+            Write-Host "Found: $($_.FullName)"
+          }
+
       - name: Package Windows (Inno Setup)
         if: runner.os == 'Windows'
         shell: powershell
@@ -188,19 +197,25 @@ jobs:
           }
 
           if (-not (Test-Path $ISCC)) {
-            Write-Error "Inno Setup compiler not found."
+            Write-Error "Inno Setup compiler not found at: $ISCC"
             exit 1
           }
 
-          $ExePath = Get-ChildItem -Path "out/build" -Filter "tempolink_juce_client.exe" -Recurse |
+          # Broad pattern matching to find the correct TempoLink executable
+          $ExePath = Get-ChildItem -Path "." -Recurse -Filter *.exe |
+            Where-Object { $_.Name -match "tempolink" } |
             Select-Object -First 1 -ExpandProperty FullName
 
           if (-not $ExePath) {
-            Write-Error "Could not find tempolink_juce_client.exe for packaging."
+            Write-Host "=== All available .exe files (for debugging) ==="
+            Get-ChildItem -Path "." -Recurse -Filter *.exe | ForEach-Object { $_.FullName }
+            Write-Error "Could not find any TempoLink related executable for packaging."
             exit 1
           }
 
-          & $ISCC "/DSourceExe=$ExePath" "/DSourceEnv=./.env.deploy" "Cpp/Client/Installer/TempoLink.iss"
+          Write-Host "Using executable for installer: $ExePath"
+
+          & $ISCC "/DSourceExe=$ExePath" "/DSourceEnv=$PWD/.env.deploy" "Cpp/Client/Installer/TempoLink.iss"
 
       - name: Package (CPack)
         if: runner.os != 'Windows'

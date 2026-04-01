@@ -5,16 +5,21 @@ on:
     branches: ["dev", "main"]
     paths:
       - "SpringBoot/**"
-      - ".github/workflows/**"
+      - ".github/workflows/springboot.yml"
   pull_request:
     branches: ["dev", "main"]
     paths:
       - "SpringBoot/**"
-      - ".github/workflows/**"
+      - ".github/workflows/springboot.yml"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -25,14 +30,15 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      - name: Setup Gradle
+      - name: Setup Gradle Cache
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build with Gradle
+      - name: Fix gradlew and build
         working-directory: SpringBoot/ControlPlaneService
         run: |
+          sed -i 's/\r$//' gradlew
           chmod +x gradlew
-          ./gradlew build
+          ./gradlew clean build
 
       - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
@@ -44,6 +50,11 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -55,7 +66,7 @@ jobs:
           path: SpringBoot/ControlPlaneService/build/libs/
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -67,7 +78,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest
 
       - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -77,8 +88,10 @@ jobs:
             docker stop tempolink-server || true
             docker rm tempolink-server || true
 
-            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env.server
-            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.server
+            cat > .env.server <<EOF
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            EOF
 
             docker run -d -p 8080:8080 --name tempolink-server \
               -v /home/${{ secrets.SERVER_USER }}/downloads:/app/downloads \
