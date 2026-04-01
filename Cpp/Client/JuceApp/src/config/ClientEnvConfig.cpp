@@ -13,6 +13,9 @@
 #include "tempolink/juce/constants/AuthConstants.h"
 
 namespace tempolink::juceapp::config {
+
+static std::string g_current_env = "local";
+
 namespace {
 
 juce::File ResolveRepoRoot() {
@@ -49,11 +52,17 @@ std::string TrimCopy(std::string value) {
 std::unordered_map<std::string, std::string> LoadDotEnvMap() {
   std::unordered_map<std::string, std::string> kv;
 
-  juce::File env_file = juce::File::getCurrentWorkingDirectory().getChildFile(".env.client");
+  std::string env_file_name = ".env";
+  const std::string env_suffix = ClientEnvConfig::GetEnvironment();
+  if (!env_suffix.empty()) {
+    env_file_name += "." + env_suffix;
+  }
+
+  juce::File env_file = juce::File::getCurrentWorkingDirectory().getChildFile(env_file_name);
   if (!env_file.existsAsFile()) {
     const auto root = ResolveRepoRoot();
     if (root.isDirectory()) {
-      env_file = root.getChildFile(".env.client");
+      env_file = root.getChildFile(env_file_name);
     }
   }
   if (!env_file.existsAsFile()) {
@@ -138,6 +147,14 @@ std::uint16_t SanitizeCallbackPort(std::uint16_t port, std::uint16_t fallback) {
 }
 
 }  // namespace
+
+void ClientEnvConfig::SetEnvironment(const std::string& env) {
+  g_current_env = env;
+}
+
+std::string ClientEnvConfig::GetEnvironment() {
+  return g_current_env;
+}
 
 ClientEnvConfig ClientEnvConfig::Load() {
   const auto dotenv = LoadDotEnvMap();

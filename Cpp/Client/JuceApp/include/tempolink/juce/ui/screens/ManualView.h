@@ -3,10 +3,12 @@
 #include <functional>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
-class ManualView final : public juce::Component {
+class ManualView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   ManualView();
+  void updateTheme() override;
 
   void setOnBack(std::function<void()> on_back);
   void setOnReload(std::function<void()> on_reload);

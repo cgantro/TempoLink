@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
 #include "tempolink/juce/ui/common/PanelCard.h"
 #include "tempolink/juce/ui/components/ParticipantStripComponent.h"
@@ -13,9 +14,10 @@
 #include "tempolink/juce/ui/session/MyInputPanel.h"
 #include "tempolink/juce/ui/session/TopStatusBar.h"
 
-class SessionView final : public juce::Component {
+class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   SessionView();
+  void updateTheme() override;
 
   void setRoomTitle(const juce::String& title);
   void setConnectionState(bool connected);

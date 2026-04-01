@@ -9,6 +9,7 @@
 #include "tempolink/juce/style/UiStyle.h"
 
 MainComponent::MainComponent() {
+  tempolink::juceapp::style::ThemeManager::getInstance().addListener(this);
   addAndMakeVisible(lobby_view_);
   addAndMakeVisible(login_view_);
   addAndMakeVisible(my_rooms_view_);
@@ -20,6 +21,18 @@ MainComponent::MainComponent() {
   addAndMakeVisible(manual_view_);
   addAndMakeVisible(qna_view_);
   addAndMakeVisible(settings_view_);
+
+  // Load and set Logo
+  auto exe_file = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
+  auto project_root = exe_file.getParentDirectory().getParentDirectory().getParentDirectory(); // adjust if needed
+  auto logo_file = project_root.getChildFile("Assets").getChildFile("Logos").getChildFile("icons.png");
+  
+  if (logo_file.existsAsFile()) {
+    auto logo_img = juce::ImageFileFormat::loadFrom(logo_file);
+    if (logo_img.isValid()) {
+      lobby_view_.setLogoImage(logo_img);
+    }
+  }
 
   try {
     const auto env = tempolink::juceapp::config::ClientEnvConfig::Load();
@@ -46,6 +59,7 @@ MainComponent::MainComponent() {
 }
 
 MainComponent::~MainComponent() {
+  tempolink::juceapp::style::ThemeManager::getInstance().removeListener(this);
   stopTimer();
   if (presenter_ != nullptr) {
     try {
@@ -60,6 +74,15 @@ MainComponent::~MainComponent() {
     presenter_.reset();
   }
   audio_bridge_.reset();
+}
+
+void MainComponent::themeChanged() {
+  repaint();
+  // Ensure all views are also repainted (some might have custom paint that doesn't rely on findColour)
+  lobby_view_.repaint();
+  login_view_.repaint();
+  session_view_.repaint();
+  settings_view_.repaint();
 }
 
 void MainComponent::resized() {

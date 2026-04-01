@@ -12,5 +12,7 @@ SpringBoot/ControlPlaneService/.gradle/
 .env
 .env.client
 .env.server
+.env.local
+.env.deploy
 !.env.client.example
 !.env.server.example

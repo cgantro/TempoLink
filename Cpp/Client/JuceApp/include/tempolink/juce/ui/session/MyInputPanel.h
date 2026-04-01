@@ -5,12 +5,15 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
 #include "tempolink/juce/ui/common/PanelCard.h"
+#include "tempolink/juce/ui/common/LevelMeterComponent.h"
 
-class MyInputPanel final : public juce::Component {
+class MyInputPanel final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   MyInputPanel();
+  void updateTheme() override;
 
   void setInputDevices(const std::vector<std::string>& devices, const std::string& selected);
   void setOutputDevices(const std::vector<std::string>& devices, const std::string& selected);
@@ -52,9 +55,8 @@ class MyInputPanel final : public juce::Component {
   juce::Label output_label_;
   juce::ComboBox output_combo_;
   juce::ToggleButton mute_toggle_{"Mute Mic"};
-  double input_level_display_ = 0.0;
   juce::Label input_level_label_;
-  juce::ProgressBar input_level_meter_{input_level_display_};
+  tempolink::juceapp::ui::common::LevelMeterComponent level_meter_;
   juce::Label input_gain_label_;
   juce::Slider input_gain_slider_;
   juce::Label reverb_label_;

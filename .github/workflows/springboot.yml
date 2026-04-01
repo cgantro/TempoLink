@@ -1,0 +1,100 @@
+name: Spring Boot CI/CD
+
+on:
+  push:
+    branches: ["dev", "main"]
+    paths:
+      - "SpringBoot/**"
+      - ".github/workflows/springboot.yml"
+  pull_request:
+    branches: ["dev", "main"]
+    paths:
+      - "SpringBoot/**"
+      - ".github/workflows/springboot.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Fix gradlew and build
+        working-directory: SpringBoot/ControlPlaneService
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
+          ./gradlew clean build
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: springboot-app
+          path: SpringBoot/ControlPlaneService/build/libs/*.jar
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download JAR Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: springboot-app
+          path: SpringBoot/ControlPlaneService/build/libs/
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        working-directory: SpringBoot/ControlPlaneService
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest
+            docker stop tempolink-server || true
+            docker rm tempolink-server || true
+
+            cat > .env.server <<EOF
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            EOF
+
+            docker run -d -p 8080:8080 --name tempolink-server \
+              -v /home/${{ secrets.SERVER_USER }}/downloads:/app/downloads \
+              --env-file .env.server \
+              -e SERVER_FORWARD_HEADERS_STRATEGY=native \
+              ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest

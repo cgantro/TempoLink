@@ -4,12 +4,13 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
-
+#include "tempolink/juce/style/ThemeableComponent.h"
 #include "tempolink/juce/network/http/news/NewsApiClient.h"
 
-class NewsView final : public juce::Component {
+class NewsView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   NewsView();
+  void updateTheme() override;
 
   void setOnBack(std::function<void()> on_back);
   void setOnRefresh(std::function<void()> on_refresh);

@@ -52,9 +52,8 @@ bool DeviceSupportsDirection(AudioDeviceID device_id, bool input) {
     return false;
   }
 
-  const auto free_buffer = [buffer_list]() { std::free(buffer_list); };
-  std::unique_ptr<AudioBufferList, decltype(free_buffer)> guard(buffer_list,
-                                                                free_buffer);
+  auto free_buffer = [](AudioBufferList* p) { if (p) std::free(p); };
+  std::unique_ptr<AudioBufferList, decltype(free_buffer)> guard(buffer_list, free_buffer);
 
   if (AudioObjectGetPropertyData(device_id, &config_addr, 0, nullptr, &data_size,
                                  buffer_list) != noErr) {

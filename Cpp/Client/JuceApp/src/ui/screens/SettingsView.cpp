@@ -15,30 +15,17 @@ SettingsView::SettingsView() {
 
   title_label_.setText("Settings", juce::dontSendNotification);
   title_label_.setFont(juce::FontOptions(26.0F).withStyle("Bold"));
-  title_label_.setColour(juce::Label::textColourId,
-                         tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(title_label_);
 
-  status_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextSecondary());
   addAndMakeVisible(status_label_);
 
-  auto init_label = [](juce::Label& label) {
-    label.setColour(juce::Label::textColourId,
-                    tempolink::juceapp::style::TextPrimary());
-  };
-  init_label(input_label_);
-  init_label(output_label_);
-  init_label(sample_rate_label_);
-  init_label(buffer_label_);
-  init_label(nickname_label_);
-  init_label(bio_label_);
   addAndMakeVisible(input_label_);
   addAndMakeVisible(output_label_);
   addAndMakeVisible(sample_rate_label_);
   addAndMakeVisible(buffer_label_);
   addAndMakeVisible(nickname_label_);
   addAndMakeVisible(bio_label_);
+  addAndMakeVisible(theme_label_);
 
   input_combo_.onChange = [this] {
     if (on_input_changed_) {
@@ -130,11 +117,71 @@ SettingsView::SettingsView() {
     on_save_profile_(nickname_editor_.getText().trim().toStdString(),
                      bio_editor_.getText().trim().toStdString());
   };
-  save_profile_button_.setColour(juce::TextButton::buttonColourId,
-                                 tempolink::juceapp::style::CardBackground());
-  save_profile_button_.setColour(juce::TextButton::textColourOffId,
-                                 tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(save_profile_button_);
+
+  theme_combo_.addItem("Dark", 1);
+  theme_combo_.addItem("Light", 2);
+  theme_combo_.addItem("System", 3);
+  theme_combo_.onChange = [this] {
+    auto& tm = tempolink::juceapp::style::ThemeManager::getInstance();
+    switch (theme_combo_.getSelectedId()) {
+      case 1: tm.setTheme(tempolink::juceapp::style::ThemeMode::Dark); break;
+      case 2: tm.setTheme(tempolink::juceapp::style::ThemeMode::Light); break;
+      case 3: tm.setTheme(tempolink::juceapp::style::ThemeMode::System); break;
+    }
+  };
+  addAndMakeVisible(theme_combo_);
+  
+  updateTheme();
+}
+void SettingsView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  
+  input_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  output_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  sample_rate_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  buffer_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  nickname_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  bio_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  theme_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+
+  nickname_editor_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  nickname_editor_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  nickname_editor_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  bio_editor_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  bio_editor_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  bio_editor_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::CardBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+  update_btn(apply_button_);
+  update_btn(test_input_button_);
+  update_btn(test_output_button_);
+  update_btn(save_profile_button_);
+
+  auto update_combo = [](juce::ComboBox& c) {
+    c.setColour(juce::ComboBox::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+    c.setColour(juce::ComboBox::textColourId, tempolink::juceapp::style::TextPrimary());
+    c.setColour(juce::ComboBox::outlineColourId, tempolink::juceapp::style::PanelBorder());
+    c.setColour(juce::ComboBox::arrowColourId, tempolink::juceapp::style::TextSecondary());
+  };
+  update_combo(input_combo_);
+  update_combo(output_combo_);
+  update_combo(sample_rate_combo_);
+  update_combo(buffer_combo_);
+  update_combo(theme_combo_);
+
+  auto current_theme = tempolink::juceapp::style::ThemeManager::getInstance().getThemeMode();
+  if (current_theme == tempolink::juceapp::style::ThemeMode::Dark) theme_combo_.setSelectedId(1, juce::dontSendNotification);
+  else if (current_theme == tempolink::juceapp::style::ThemeMode::Light) theme_combo_.setSelectedId(2, juce::dontSendNotification);
+  else theme_combo_.setSelectedId(3, juce::dontSendNotification);
+
+  repaint();
 }
 
 void SettingsView::setOnBack(std::function<void()> on_back) {
@@ -264,6 +311,11 @@ void SettingsView::resized() {
   auto bio_row = area.removeFromTop(120);
   bio_label_.setBounds(bio_row.removeFromLeft(110));
   bio_editor_.setBounds(bio_row);
+
+  area.removeFromTop(12);
+  auto theme_row = area.removeFromTop(32);
+  theme_label_.setBounds(theme_row.removeFromLeft(110));
+  theme_combo_.setBounds(theme_row.removeFromLeft(200));
 }
 
 void SettingsView::paint(juce::Graphics& g) {

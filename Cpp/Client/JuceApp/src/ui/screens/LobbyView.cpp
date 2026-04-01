@@ -17,18 +17,12 @@ constexpr int kCreateDialogHeight = 240;
 LobbyView::LobbyView() {
   title_label_.setText("Rooms", juce::dontSendNotification);
   title_label_.setFont(juce::FontOptions(24.0F).withStyle("Bold"));
-  title_label_.setColour(juce::Label::textColourId,
-                         tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(title_label_);
 
   tabs_label_.setText("Active Rooms      Standby Rooms", juce::dontSendNotification);
-  tabs_label_.setColour(juce::Label::textColourId,
-                        tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(tabs_label_);
 
   status_label_.setText("Select a room and join session.", juce::dontSendNotification);
-  status_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextSecondary());
   addAndMakeVisible(status_label_);
 
   logo_image_.setInterceptsMouseClicks(false, false);
@@ -37,24 +31,12 @@ LobbyView::LobbyView() {
 
   logo_text_label_.setText("TempoLink", juce::dontSendNotification);
   logo_text_label_.setFont(juce::FontOptions(20.0F).withStyle("Bold"));
-  logo_text_label_.setColour(juce::Label::textColourId,
-                             tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(logo_text_label_);
 
   nav_title_label_.setText("Navigation", juce::dontSendNotification);
   nav_title_label_.setFont(juce::FontOptions(12.0F).withStyle("Bold"));
-  nav_title_label_.setColour(juce::Label::textColourId,
-                             tempolink::juceapp::style::TextSecondary());
   addAndMakeVisible(nav_title_label_);
 
-  search_editor_.setTextToShowWhenEmpty("Search rooms",
-                                        tempolink::juceapp::style::TextSecondary());
-  search_editor_.setColour(juce::TextEditor::textColourId,
-                           tempolink::juceapp::style::TextPrimary());
-  search_editor_.setColour(juce::TextEditor::backgroundColourId,
-                           tempolink::juceapp::style::PanelBackground());
-  search_editor_.setColour(juce::TextEditor::outlineColourId,
-                           tempolink::juceapp::style::BorderStrong());
   search_editor_.onTextChange = [this] {
     filter_.query = search_editor_.getText().trim().toStdString();
     rebuildRoomCards();
@@ -65,14 +47,6 @@ LobbyView::LobbyView() {
   };
   addAndMakeVisible(search_editor_);
 
-  tag_filter_editor_.setTextToShowWhenEmpty("Tag filter",
-                                            tempolink::juceapp::style::TextSecondary());
-  tag_filter_editor_.setColour(juce::TextEditor::textColourId,
-                               tempolink::juceapp::style::TextPrimary());
-  tag_filter_editor_.setColour(juce::TextEditor::backgroundColourId,
-                               tempolink::juceapp::style::PanelBackground());
-  tag_filter_editor_.setColour(juce::TextEditor::outlineColourId,
-                               tempolink::juceapp::style::BorderStrong());
   tag_filter_editor_.onTextChange = [this] {
     filter_.tag = tag_filter_editor_.getText().trim().toStdString();
     rebuildRoomCards();
@@ -182,53 +156,30 @@ LobbyView::LobbyView() {
     button->setRadioGroupId(1);
     button->setToggleState(i == 0, juce::dontSendNotification);
     button->setTooltip(juce::String("Open ") + juce::String(kNavItems[i]));
-    button->setColour(juce::TextButton::buttonColourId,
-                      juce::Colour::fromRGB(241, 245, 255));
-    button->setColour(juce::TextButton::buttonOnColourId,
-                      juce::Colour::fromRGB(78, 107, 223));
-    button->setColour(juce::TextButton::textColourOffId,
-                      juce::Colour::fromRGB(58, 74, 118));
-    button->setColour(juce::TextButton::textColourOnId,
-                      tempolink::juceapp::style::TextInverted());
-    button->onClick = [this, i] {
-      if (!on_navigation_selected_) {
-        return;
-      }
-      switch (i) {
-        case 0:
-          on_navigation_selected_(NavigationTarget::Rooms);
-          break;
-        case 1:
-          on_navigation_selected_(NavigationTarget::Profile);
-          break;
-        case 2:
-          on_navigation_selected_(NavigationTarget::Users);
-          break;
-        case 3:
-          on_navigation_selected_(NavigationTarget::News);
-          break;
-        case 4:
-          on_navigation_selected_(NavigationTarget::Manual);
-          break;
-        case 5:
-          on_navigation_selected_(NavigationTarget::Qna);
-          break;
-        case 6:
-          on_navigation_selected_(NavigationTarget::Settings);
-          break;
-        default:
-          break;
-      }
+    
+    // Connect nav button clicks to handler
+    const auto name = juce::String(kNavItems[i]);
+    button->onClick = [this, name] {
+      if (!on_navigation_selected_) return;
+      
+      NavigationTarget target;
+      if (name == "Rooms") target = NavigationTarget::Rooms;
+      else if (name == "Profile") target = NavigationTarget::Profile;
+      else if (name == "Users") target = NavigationTarget::Users;
+      else if (name == "News") target = NavigationTarget::News;
+      else if (name == "Manual") target = NavigationTarget::Manual;
+      else if (name == "Q&A") target = NavigationTarget::Qna;
+      else if (name == "Setting") target = NavigationTarget::Settings;
+      else return;
+      
+      on_navigation_selected_(target);
     };
+
     addAndMakeVisible(*button);
     nav_buttons_.push_back(std::move(button));
   }
 
   room_action_fab_.setTooltip("Room action");
-  room_action_fab_.setColour(juce::TextButton::buttonColourId,
-                             juce::Colour::fromRGB(69, 95, 211));
-  room_action_fab_.setColour(juce::TextButton::textColourOffId,
-                             tempolink::juceapp::style::TextInverted());
   room_action_fab_.onClick = [this] {
     auto safe_this = juce::Component::SafePointer<LobbyView>(this);
     juce::PopupMenu menu;
@@ -324,6 +275,51 @@ LobbyView::LobbyView() {
   cards_viewport_.setScrollBarsShown(true, false);
   addAndMakeVisible(cards_viewport_);
   room_action_fab_.toFront(false);
+  
+  updateTheme();
+}
+
+void LobbyView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  tabs_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  logo_text_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  nav_title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+
+  search_editor_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  search_editor_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  search_editor_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+  search_editor_.setTextToShowWhenEmpty("Search rooms", tempolink::juceapp::style::TextSecondary());
+
+  tag_filter_editor_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  tag_filter_editor_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  tag_filter_editor_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+  tag_filter_editor_.setTextToShowWhenEmpty("Tag filter", tempolink::juceapp::style::TextSecondary());
+
+  for (auto& button : nav_buttons_) {
+    button->setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    button->setColour(juce::TextButton::buttonOnColourId, tempolink::juceapp::style::PrimaryBlue());
+    button->setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextSecondary());
+    button->setColour(juce::TextButton::textColourOnId, tempolink::juceapp::style::TextInverted());
+  }
+
+  room_action_fab_.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PrimaryBlue());
+  room_action_fab_.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextInverted());
+
+  // Update check box & dropdown colors
+  active_filter_toggle_.setColour(juce::ToggleButton::textColourId, tempolink::juceapp::style::TextPrimary());
+  standby_filter_toggle_.setColour(juce::ToggleButton::textColourId, tempolink::juceapp::style::TextPrimary());
+  
+  auto update_combo = [](juce::ComboBox& c) {
+    c.setColour(juce::ComboBox::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+    c.setColour(juce::ComboBox::textColourId, tempolink::juceapp::style::TextPrimary());
+    c.setColour(juce::ComboBox::outlineColourId, tempolink::juceapp::style::PanelBorder());
+    c.setColour(juce::ComboBox::arrowColourId, tempolink::juceapp::style::TextSecondary());
+  };
+  update_combo(visibility_filter_combo_);
+  update_combo(password_filter_combo_);
+
+  repaint();
 }
 
 void LobbyView::setRooms(const std::vector<RoomSummary>& rooms) {
@@ -437,18 +433,19 @@ void LobbyView::paint(juce::Graphics& g) {
   auto bounds = getLocalBounds().reduced(tempolink::juceapp::style::kLobbyPadding);
   auto left = bounds.removeFromLeft(228).toFloat();
 
-  juce::ColourGradient side_gradient(
-      juce::Colour::fromRGB(248, 251, 255), left.getTopLeft(),
-      juce::Colour::fromRGB(235, 241, 255), left.getBottomLeft(), false);
-  g.setGradientFill(side_gradient);
+  g.setColour(tempolink::juceapp::style::PanelBackground());
   g.fillRoundedRectangle(left, 14.0F);
+  
+  g.setColour(tempolink::juceapp::style::PanelBorder());
+  g.drawRoundedRectangle(left, 14.0F, 1.0F);
 
   auto nav_section = left.reduced(10.0F, 86.0F);
-  g.setColour(juce::Colour::fromRGBA(255, 255, 255, 155));
+  g.setColour(tempolink::juceapp::style::CardBackground().withAlpha(0.3f));
   g.fillRoundedRectangle(nav_section, 12.0F);
 
   const auto fab_bounds = room_action_fab_.getBounds().toFloat();
-  g.setColour(juce::Colour::fromRGBA(20, 28, 50, 40));
+  float shadow_alpha = tempolink::juceapp::style::ThemeManager::getInstance().isDark() ? 0.4f : 0.15f;
+  g.setColour(juce::Colours::black.withAlpha(shadow_alpha));
   g.fillEllipse(fab_bounds.translated(2.0F, 3.0F));
 }
 

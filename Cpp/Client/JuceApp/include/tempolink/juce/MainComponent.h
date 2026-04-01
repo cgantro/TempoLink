@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <juce_gui_extra/juce_gui_extra.h>
+#include "tempolink/juce/style/ThemeManager.h"
 
 #include "tempolink/juce/ui/screens/LobbyView.h"
 #include "tempolink/juce/ui/screens/LoginView.h"
@@ -21,10 +22,14 @@ namespace tempolink::juceapp::bridge {
 class UdpAudioBridgePort;
 }
 
-class MainComponent final : public juce::Component, private juce::Timer {
+class MainComponent final : public juce::Component, 
+                           private juce::Timer,
+                           public tempolink::juceapp::style::ThemeManager::Listener {
  public:
   MainComponent();
   ~MainComponent() override;
+
+  void themeChanged() override;
 
   void resized() override;
 

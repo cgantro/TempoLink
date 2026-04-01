@@ -5,48 +5,33 @@
 #include "tempolink/juce/style/UiStyle.h"
 
 RoomEntrySettingsView::RoomEntrySettingsView() {
-  card_.setTitle("Room Entry");
+  suppress_callbacks_ = true;
   addAndMakeVisible(card_);
   card_.setContent(body_);
 
-  title_label_.setFont(juce::FontOptions(24.0F).withStyle("Bold"));
-  title_label_.setColour(juce::Label::textColourId,
-                         tempolink::juceapp::style::TextPrimary());
-  title_label_.setText("Entry Settings", juce::dontSendNotification);
   body_.addAndMakeVisible(title_label_);
-
-  room_label_.setColour(juce::Label::textColourId,
-                        tempolink::juceapp::style::TextSecondary());
-  room_label_.setText("Room: -", juce::dontSendNotification);
   body_.addAndMakeVisible(room_label_);
-
-  part_label_.setText("Part", juce::dontSendNotification);
-  input_label_.setText("Input Device", juce::dontSendNotification);
-  output_label_.setText("Output Device", juce::dontSendNotification);
-  part_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
-  input_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
-  output_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
   body_.addAndMakeVisible(part_label_);
-  body_.addAndMakeVisible(input_label_);
-  body_.addAndMakeVisible(output_label_);
-
-  PopulatePartOptions(part_combo_);
   body_.addAndMakeVisible(part_combo_);
+  body_.addAndMakeVisible(input_label_);
   body_.addAndMakeVisible(input_combo_);
+  body_.addAndMakeVisible(output_label_);
   body_.addAndMakeVisible(output_combo_);
-
-  preflight_label_.setColour(juce::Label::textColourId,
-                             tempolink::juceapp::style::TextSecondary());
   body_.addAndMakeVisible(preflight_label_);
-
-  status_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextSecondary());
-  status_label_.setText("Select part and devices before entering.", juce::dontSendNotification);
   body_.addAndMakeVisible(status_label_);
-
   body_.addAndMakeVisible(back_button_);
   body_.addAndMakeVisible(audio_settings_button_);
   body_.addAndMakeVisible(join_button_);
+
+  title_label_.setText("Room Entry Settings", juce::dontSendNotification);
+  title_label_.setFont(juce::FontOptions(24.0f).withStyle("Bold"));
+
+  room_label_.setFont(juce::FontOptions(16.0f));
+  part_label_.setText("Select your part", juce::dontSendNotification);
+  input_label_.setText("Input Device", juce::dontSendNotification);
+  output_label_.setText("Output Device", juce::dontSendNotification);
+
+  PopulatePartOptions(part_combo_);
 
   part_combo_.onChange = [this] {
     updatePreflightState();
@@ -82,7 +67,41 @@ RoomEntrySettingsView::RoomEntrySettingsView() {
     }
   };
 
+  updateTheme();
   updatePreflightState();
+  suppress_callbacks_ = false;
+}
+
+void RoomEntrySettingsView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  room_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  part_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  input_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  output_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  preflight_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+
+  auto update_combo = [](juce::ComboBox& c) {
+    c.setColour(juce::ComboBox::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+    c.setColour(juce::ComboBox::textColourId, tempolink::juceapp::style::TextPrimary());
+    c.setColour(juce::ComboBox::outlineColourId, tempolink::juceapp::style::PanelBorder());
+    c.setColour(juce::ComboBox::arrowColourId, tempolink::juceapp::style::TextSecondary());
+  };
+  update_combo(part_combo_);
+  update_combo(input_combo_);
+  update_combo(output_combo_);
+
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+  update_btn(audio_settings_button_);
+  
+  join_button_.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PrimaryBlue());
+  join_button_.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextInverted());
+
+  repaint();
 }
 
 void RoomEntrySettingsView::setRoom(const RoomSummary& room) {

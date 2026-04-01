@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempoLink - 실시간 오디오 잼 세션</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: rgba(30, 41, 59, 0.7);
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            
+            /* OS Brand Colors */
+            --windows-color: #0078D4;
+            --macos-color: #4B5563;
+            --ubuntu-color: #E95420;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.15), transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            margin: 0 auto;
+            text-align: center;
+            padding: 4rem 0;
+        }
+
+        /* 🚀 Hero Section */
+        .hero {
+            margin-bottom: 4rem;
+            animation: fadeInDown 1s ease-out forwards;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin: 0 0 1rem 0;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1.5px;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 1.5rem auto;
+            line-height: 1.6;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* 💻 Download Cards Layout */
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            width: 100%;
+        }
+
+        .os-card {
+            background: var(--surface-color);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2.5rem 1.5rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        /* Staggered Animations */
+        .os-card:nth-child(1) { animation-delay: 0.2s; }
+        .os-card:nth-child(2) { animation-delay: 0.4s; }
+        .os-card:nth-child(3) { animation-delay: 0.6s; }
+
+        .os-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* OS Icons (Using simple SVGs or Emoji for now) */
+        .os-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .os-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            color: #ffffff;
+        }
+
+        .os-desc {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        /* Download Buttons */
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-download::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-download:hover::after {
+            left: 100%;
+        }
+
+        .btn-download:active {
+            transform: scale(0.97);
+        }
+
+        /* OS Specific Button Colors */
+        .btn-windows { background-color: var(--windows-color); }
+        .btn-windows:hover { background-color: #005A9E; }
+        .btn-windows:focus { box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.4); }
+
+        .btn-macos { background-color: var(--macos-color); }
+        .btn-macos:hover { background-color: #374151; }
+        .btn-macos:focus { box-shadow: 0 0 0 3px rgba(75, 85, 99, 0.4); }
+
+        .btn-ubuntu { background-color: var(--ubuntu-color); }
+        .btn-ubuntu:hover { background-color: #CD4A1D; }
+        .btn-ubuntu:focus { box-shadow: 0 0 0 3px rgba(233, 84, 32, 0.4); }
+
+        .installer-note {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 1rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* SVG Icons */
+        .btn-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Hero Section -->
+        <header class="hero">
+            <h1>TempoLink</h1>
+            <p>초저지연 실시간 오디오 잼 세션. 웹과 데스크탑을 아우르는 최고의 온라인 합주 플랫폼을 지금 경험해 보세요.</p>
+            <div class="version-badge">최신 릴리즈 버전: v<span th:text="${clientVersion}">0.1.0</span></div>
+        </header>
+
+        <!-- OS Download Grid -->
+        <div class="download-grid">
+            
+            <!-- Windows Card -->
+            <div class="os-card">
+                <span class="os-icon">🪟</span>
+                <h2 class="os-title">Windows</h2>
+                <p class="os-desc">Windows 10 / 11 64-bit 환경. ASIO 드라이버 및 필수 런타임이 함께 설치됩니다.</p>
+                
+                <a href="/api/download/installer/windows" class="btn-download btn-windows">
+                    <span class="btn-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    </span>
+                    Windows 설치 다운로드
+                </a>
+                <div class="installer-note">자동 환경 구성을 포함한 Installer (exe)</div>
+            </div>
+
+            <!-- macOS Card -->
+            <div class="os-card">
+                <span class="os-icon">🍎</span>
+                <h2 class="os-title">macOS</h2>
+                <p class="os-desc">Intel & Apple Silicon (M1/M2/M3) 기본 지원. 가상 오디오 드라이버 구성이 포함됩니다.</p>
+                
+                <a href="/api/download/installer/macos" class="btn-download btn-macos">
+                    <span class="btn-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    </span>
+                    macOS 설치 다운로드
+                </a>
+                <div class="installer-note">CoreAudio 호환 Installer (pkg)</div>
+            </div>
+
+            <!-- Ubuntu Card -->
+            <div class="os-card">
+                <span class="os-icon">🐧</span>
+                <h2 class="os-title">Ubuntu Linux</h2>
+                <p class="os-desc">Ubuntu 20.04 LTS 이상 환경. ALSA/JACK 통합 설정과 관련 패키지가 포함됩니다.</p>
+                
+                <a href="/api/download/installer/ubuntu" class="btn-download btn-ubuntu">
+                    <span class="btn-icon">
+                        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    </span>
+                    Ubuntu 설치 다운로드
+                </a>
+                <div class="installer-note">의존성 패키지 관리형 Installer (deb)</div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

@@ -46,8 +46,6 @@ ProfileView::ProfileView() {
   addAndMakeVisible(bio_value_);
 
   info_label_.setJustificationType(juce::Justification::topLeft);
-  info_label_.setColour(juce::Label::textColourId,
-                        tempolink::juceapp::style::TextSecondary());
   info_label_.setText(
       "Profile / social / favorites management area.\n"
       "- Nickname / bio\n"
@@ -55,6 +53,29 @@ ProfileView::ProfileView() {
       "- Profile visibility settings",
       juce::dontSendNotification);
   addAndMakeVisible(info_label_);
+
+  updateTheme();
+}
+
+void ProfileView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  nickname_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  nickname_value_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  bio_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  info_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+
+  bio_value_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  bio_value_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  bio_value_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+
+  repaint();
 }
 
 void ProfileView::setOnBack(std::function<void()> on_back) {

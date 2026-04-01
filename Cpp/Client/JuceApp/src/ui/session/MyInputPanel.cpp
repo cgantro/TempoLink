@@ -12,98 +12,55 @@ MyInputPanel::MyInputPanel() {
 
   input_label_.setText("Input", juce::dontSendNotification);
   output_label_.setText("Output", juce::dontSendNotification);
-  input_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
-  output_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
   body_.addAndMakeVisible(input_label_);
   body_.addAndMakeVisible(output_label_);
   body_.addAndMakeVisible(input_combo_);
   body_.addAndMakeVisible(output_combo_);
 
   input_level_label_.setText("Input Level", juce::dontSendNotification);
-  input_level_label_.setColour(juce::Label::textColourId,
-                               tempolink::juceapp::style::TextPrimary());
   input_level_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
   body_.addAndMakeVisible(input_level_label_);
-  input_level_meter_.setColour(juce::ProgressBar::backgroundColourId,
-                               tempolink::juceapp::style::CardBackground());
-  input_level_meter_.setColour(juce::ProgressBar::foregroundColourId,
-                               tempolink::juceapp::style::ParticipantAvatarSelf());
-  body_.addAndMakeVisible(input_level_meter_);
+  body_.addAndMakeVisible(level_meter_);
 
   input_gain_label_.setText("Input Gain", juce::dontSendNotification);
-  input_gain_label_.setColour(juce::Label::textColourId,
-                              tempolink::juceapp::style::TextPrimary());
   input_gain_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
   body_.addAndMakeVisible(input_gain_label_);
 
   input_gain_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
   input_gain_slider_.setRange(0.0, 2.0, 0.01);
   input_gain_slider_.setValue(1.0);
-  input_gain_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 28);
+  input_gain_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 24);
   input_gain_slider_.setNumDecimalPlacesToDisplay(2);
   input_gain_slider_.setTextValueSuffix(" x");
-  input_gain_slider_.setColour(juce::Slider::textBoxTextColourId,
-                               tempolink::juceapp::style::TextPrimary());
-  input_gain_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
-                               tempolink::juceapp::style::CardBackground());
-  input_gain_slider_.setColour(juce::Slider::textBoxOutlineColourId,
-                               tempolink::juceapp::style::BorderStrong());
   body_.addAndMakeVisible(input_gain_slider_);
 
   reverb_label_.setText("Reverb", juce::dontSendNotification);
-  reverb_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextPrimary());
   reverb_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
   body_.addAndMakeVisible(reverb_label_);
 
   reverb_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
   reverb_slider_.setRange(0.0, 1.0, 0.01);
   reverb_slider_.setValue(0.0);
-  reverb_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 28);
+  reverb_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 24);
   reverb_slider_.setNumDecimalPlacesToDisplay(2);
   reverb_slider_.setTextValueSuffix(" mix");
-  reverb_slider_.setColour(juce::Slider::textBoxTextColourId,
-                           tempolink::juceapp::style::TextPrimary());
-  reverb_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
-                           tempolink::juceapp::style::CardBackground());
-  reverb_slider_.setColour(juce::Slider::textBoxOutlineColourId,
-                           tempolink::juceapp::style::BorderStrong());
   body_.addAndMakeVisible(reverb_slider_);
 
   bpm_label_.setText("Metronome BPM", juce::dontSendNotification);
-  bpm_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
   bpm_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
   body_.addAndMakeVisible(bpm_label_);
 
   bpm_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
   bpm_slider_.setRange(30.0, 300.0, 1.0);
   bpm_slider_.setValue(120.0);
-  bpm_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 84, 28);
+  bpm_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 84, 24);
   bpm_slider_.setNumDecimalPlacesToDisplay(0);
   bpm_slider_.setTextValueSuffix(" BPM");
-  bpm_slider_.setColour(juce::Slider::textBoxTextColourId,
-                        tempolink::juceapp::style::TextPrimary());
-  bpm_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
-                        tempolink::juceapp::style::CardBackground());
-  bpm_slider_.setColour(juce::Slider::textBoxOutlineColourId,
-                        tempolink::juceapp::style::BorderStrong());
   body_.addAndMakeVisible(bpm_slider_);
 
   body_.addAndMakeVisible(mute_toggle_);
   body_.addAndMakeVisible(metronome_toggle_);
   body_.addAndMakeVisible(audio_settings_button_);
-  mute_toggle_.setColour(juce::TextButton::textColourOffId,
-                         tempolink::juceapp::style::TextPrimary());
-  mute_toggle_.setColour(juce::TextButton::textColourOnId,
-                         tempolink::juceapp::style::TextPrimary());
-  metronome_toggle_.setColour(juce::TextButton::textColourOffId,
-                              tempolink::juceapp::style::TextPrimary());
-  metronome_toggle_.setColour(juce::TextButton::textColourOnId,
-                              tempolink::juceapp::style::TextPrimary());
-  audio_settings_button_.setColour(juce::TextButton::buttonColourId,
-                                   tempolink::juceapp::style::CardBackground());
-  audio_settings_button_.setColour(juce::TextButton::textColourOffId,
-                                   tempolink::juceapp::style::TextPrimary());
 
   mute_toggle_.onClick = [this] {
     if (!suppress_callbacks_ && on_mute_changed_) {
@@ -145,6 +102,56 @@ MyInputPanel::MyInputPanel() {
       on_open_audio_settings_();
     }
   };
+
+  updateTheme();
+}
+
+void MyInputPanel::updateTheme() {
+  input_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  output_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  input_level_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  input_gain_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  reverb_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  bpm_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+
+  auto update_sl = [](juce::Slider& sl) {
+    sl.setColour(juce::Slider::textBoxTextColourId, tempolink::juceapp::style::TextPrimary());
+    sl.setColour(juce::Slider::textBoxBackgroundColourId, tempolink::juceapp::style::CardBackground());
+    sl.setColour(juce::Slider::textBoxOutlineColourId, tempolink::juceapp::style::BorderStrong());
+  };
+  update_sl(input_gain_slider_);
+  update_sl(reverb_slider_);
+  update_sl(bpm_slider_);
+
+  mute_toggle_.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  mute_toggle_.setColour(juce::TextButton::textColourOnId, tempolink::juceapp::style::TextPrimary());
+  metronome_toggle_.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  metronome_toggle_.setColour(juce::TextButton::textColourOnId, tempolink::juceapp::style::TextPrimary());
+
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::CardBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(audio_settings_button_);
+
+  auto update_slider = [](juce::Slider& s) {
+    s.setColour(juce::Slider::thumbColourId, tempolink::juceapp::style::AccentCyan());
+    s.setColour(juce::Slider::trackColourId, tempolink::juceapp::style::PanelBorder());
+    s.setColour(juce::Slider::textBoxTextColourId, tempolink::juceapp::style::TextPrimary());
+    s.setColour(juce::Slider::textBoxBackgroundColourId, tempolink::juceapp::style::CardBackground());
+    s.setColour(juce::Slider::textBoxOutlineColourId, tempolink::juceapp::style::PanelBorder());
+  };
+
+  auto update_combo = [](juce::ComboBox& c) {
+    c.setColour(juce::ComboBox::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+    c.setColour(juce::ComboBox::textColourId, tempolink::juceapp::style::TextPrimary());
+    c.setColour(juce::ComboBox::outlineColourId, tempolink::juceapp::style::PanelBorder());
+    c.setColour(juce::ComboBox::arrowColourId, tempolink::juceapp::style::TextSecondary());
+  };
+  update_combo(input_combo_);
+  update_combo(output_combo_);
+
+  repaint();
 }
 
 void MyInputPanel::setInputDevices(const std::vector<std::string>& devices,
@@ -178,8 +185,7 @@ void MyInputPanel::setMute(bool muted) {
 }
 
 void MyInputPanel::setInputLevel(float level) {
-  input_level_display_ = std::clamp(static_cast<double>(level), 0.0, 1.0);
-  input_level_meter_.repaint();
+  level_meter_.setLevel(std::clamp(level, 0.0F, 1.0F));
 }
 
 void MyInputPanel::setInputGain(float gain) {
@@ -256,7 +262,7 @@ void MyInputPanel::resized() {
   output_combo_.setBounds(area.removeFromTop(28));
   area.removeFromTop(8);
   input_level_label_.setBounds(area.removeFromTop(20));
-  input_level_meter_.setBounds(area.removeFromTop(20));
+  level_meter_.setBounds(area.removeFromTop(12));
   area.removeFromTop(4);
   input_gain_label_.setBounds(area.removeFromTop(20));
   input_gain_slider_.setBounds(area.removeFromTop(30));

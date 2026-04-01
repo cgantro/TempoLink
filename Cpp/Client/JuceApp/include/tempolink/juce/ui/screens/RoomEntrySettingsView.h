@@ -5,11 +5,12 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
-#include "tempolink/juce/ui/models/UiModels.h"
 #include "tempolink/juce/ui/common/PanelCard.h"
+#include "tempolink/juce/ui/models/UiModels.h"
 
-class RoomEntrySettingsView final : public juce::Component {
+class RoomEntrySettingsView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   struct EntrySelection {
     std::string room_code;
@@ -19,6 +20,7 @@ class RoomEntrySettingsView final : public juce::Component {
   };
 
   RoomEntrySettingsView();
+  void updateTheme() override;
 
   void setRoom(const RoomSummary& room);
   void setStatusText(const juce::String& status_text);

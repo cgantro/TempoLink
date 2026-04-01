@@ -6,12 +6,13 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
-
+#include "tempolink/juce/style/ThemeableComponent.h"
 #include "tempolink/juce/ui/components/RoomCardComponent.h"
 
-class MyRoomsView final : public juce::Component {
+class MyRoomsView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   MyRoomsView();
+  void updateTheme() override;
 
   void setRooms(const std::vector<RoomSummary>& rooms);
   void setStatusText(const juce::String& status_text);

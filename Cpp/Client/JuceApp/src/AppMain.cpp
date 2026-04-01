@@ -8,6 +8,8 @@
 
 #include "tempolink/juce/MainComponent.h"
 #include "tempolink/juce/logging/AppLogger.h"
+#include "tempolink/juce/config/ClientEnvConfig.h"
+#include "tempolink/juce/style/TempoLinkLookAndFeel.h"
 
 class TempoLinkJuceApplication final : public juce::JUCEApplication {
  public:
@@ -31,11 +33,31 @@ class TempoLinkJuceApplication final : public juce::JUCEApplication {
 #endif
     tempolink::juceapp::logging::Initialize(getApplicationName(),
                                             getApplicationVersion());
+
+    juce::String selected_env = "deploy"; // 기본값은 실제 서비스(배포) 환경
+#if defined(_DEBUG) || defined(DEBUG)
+    selected_env = "local"; // 개발자용 Debug 빌드일 경우 로컬 환경을 기본으로 사용
+#endif
+
+    juce::StringArray args = juce::JUCEApplication::getInstance()->getCommandLineParameterArray();
+    for (const auto& arg : args) {
+      if (arg == "--env=local") {
+        selected_env = "local";
+      } else if (arg == "--env=deploy") {
+        selected_env = "deploy";
+      }
+    }
+
+    tempolink::juceapp::config::ClientEnvConfig::SetEnvironment(selected_env.toStdString());
+    tempolink::juceapp::logging::Info("Starting application with environment: " + selected_env);
+
+    juce::LookAndFeel::setDefaultLookAndFeel(&look_and_feel_);
     main_window_ = std::make_unique<MainWindow>(getApplicationName());
   }
 
   void shutdown() override {
     main_window_.reset();
+    juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
     tempolink::juceapp::logging::Shutdown();
   }
 
@@ -73,6 +95,7 @@ class TempoLinkJuceApplication final : public juce::JUCEApplication {
   };
 
   std::unique_ptr<MainWindow> main_window_;
+  tempolink::juceapp::style::TempoLinkLookAndFeel look_and_feel_;
 };
 
 START_JUCE_APPLICATION(TempoLinkJuceApplication)

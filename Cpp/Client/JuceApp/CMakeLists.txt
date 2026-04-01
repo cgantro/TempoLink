@@ -117,6 +117,7 @@ target_sources(
     include/tempolink/juce/network/http/user/UsersApiClient.h
     include/tempolink/juce/network/http/user/ProfileApiClient.h
     include/tempolink/juce/style/UiStyle.h
+    include/tempolink/juce/style/TempoLinkLookAndFeel.h
     include/tempolink/juce/ui/screens/LobbyView.h
     include/tempolink/juce/ui/screens/LoginView.h
     include/tempolink/juce/ui/screens/ManualView.h
@@ -133,6 +134,7 @@ target_sources(
     include/tempolink/juce/ui/screens/UsersView.h
     include/tempolink/juce/ui/common/ConnectionBadge.h
     include/tempolink/juce/ui/common/MetricLabel.h
+    include/tempolink/juce/ui/common/LevelMeterComponent.h
     include/tempolink/juce/ui/common/PanelCard.h
     include/tempolink/juce/ui/session/MainOutPanel.h
     include/tempolink/juce/ui/session/MyInputPanel.h
@@ -157,6 +159,8 @@ target_sources(
     src/app/SessionBindings.cpp
     src/app/SessionModelSupport.cpp
     src/config/ClientEnvConfig.cpp
+    src/style/ThemeManager.cpp
+    src/style/TempoLinkLookAndFeel.cpp
     src/bridge/UdpAudioBridgePort.cpp
     src/logging/AppLogger.cpp
     src/network/auth/AuthApiClient.cpp
@@ -189,6 +193,7 @@ target_sources(
     src/ui/screens/UsersView.cpp
     src/ui/common/ConnectionBadge.cpp
     src/ui/common/MetricLabel.cpp
+    src/ui/common/LevelMeterComponent.cpp
     src/ui/common/PanelCard.cpp
     src/ui/session/MainOutPanel.cpp
     src/ui/session/MyInputPanel.cpp
@@ -270,3 +275,40 @@ if(TEMPOLINK_BUILD_JUCE_VST3_BRIDGE)
       JUCE_USE_CURL=0
   )
 endif()
+
+# --- Installation and Packaging (CPack) ---
+include(GNUInstallDirs)
+
+# Install Application
+if(APPLE)
+  set_target_properties(tempolink_juce_client PROPERTIES
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.tempolink.client"
+    MACOSX_BUNDLE_BUNDLE_NAME "TempoLink"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+  )
+  install(TARGETS tempolink_juce_client BUNDLE DESTINATION .)
+elseif(UNIX AND NOT APPLE)
+  install(TARGETS tempolink_juce_client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+# CPack Configuration
+set(CPACK_PACKAGE_NAME "TempoLink")
+set(CPACK_PACKAGE_VENDOR "TempoLink Team")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "TempoLink Realtime Audio Client")
+
+if(UNIX AND NOT APPLE)
+  set(CPACK_GENERATOR "DEB")
+  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "TempoLink Team <contact@tempolink.o-r.kr>")
+  set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
+  set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+  set(CPACK_PACKAGE_FILE_NAME "TempoLink-Installer")
+  set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+elseif(APPLE)
+  set(CPACK_GENERATOR "productbuild")
+  set(CPACK_PACKAGE_FILE_NAME "TempoLink-Installer")
+endif()
+
+include(CPack)

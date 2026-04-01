@@ -52,13 +52,27 @@ NewsView::NewsView() {
   news_text_.setReadOnly(true);
   news_text_.setScrollbarsShown(true);
   news_text_.setCaretVisible(false);
-  news_text_.setColour(juce::TextEditor::textColourId,
-                       tempolink::juceapp::style::TextPrimary());
-  news_text_.setColour(juce::TextEditor::backgroundColourId,
-                       tempolink::juceapp::style::PanelBackground());
-  news_text_.setColour(juce::TextEditor::outlineColourId,
-                       tempolink::juceapp::style::BorderStrong());
   addAndMakeVisible(news_text_);
+
+  updateTheme();
+}
+
+void NewsView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+  update_btn(refresh_button_);
+
+  news_text_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  news_text_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  news_text_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  repaint();
 }
 
 void NewsView::setOnBack(std::function<void()> on_back) {

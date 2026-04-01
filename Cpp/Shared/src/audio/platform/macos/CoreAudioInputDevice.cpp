@@ -47,8 +47,9 @@ bool CoreAudioInputDevice::Start(const AudioCaptureConfig& config,
   if (running_.exchange(true)) {
     return false;
   }
-  capture_thread_ = std::jthread(
-      [this, config, callback = std::move(callback)](std::stop_token token) {
+  // Use our portable StandardThread polyfill
+  capture_thread_ = util::StandardThread(
+      [this, config, callback = std::move(callback)](util::StopToken token) {
         CaptureLoop(token, config, callback);
       });
   return true;
@@ -68,7 +69,7 @@ bool CoreAudioInputDevice::IsRunning() const { return running_.load(); }
 
 std::string CoreAudioInputDevice::BackendName() const { return "CoreAudio"; }
 
-void CoreAudioInputDevice::CaptureLoop(std::stop_token stop_token,
+void CoreAudioInputDevice::CaptureLoop(util::StopToken stop_token,
                                        AudioCaptureConfig config,
                                        AudioCaptureCallback callback) {
   const auto frame_interval =
