@@ -289,6 +289,25 @@ if(APPLE)
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
   )
   install(TARGETS tempolink_juce_client BUNDLE DESTINATION .)
+
+  # After installing the bundle, fix it up to include all necessary non-system
+  # dylibs (like OpenSSL from Homebrew) to make it self-contained.
+  install(CODE "
+    set(app_path \"${CMAKE_INSTALL_PREFIX}/TempoLink.app\")
+    set(executable_path \"\${app_path}/Contents/MacOS/TempoLink JUCE Client\")
+
+    # Add common Homebrew paths to the search directory for libraries
+    set(search_dirs \"/usr/local/lib;/usr/lib\")
+    if(EXISTS \"/opt/homebrew/lib\")
+      list(APPEND search_dirs \"/opt/homebrew/lib\")
+    endif()
+
+    message(STATUS \"Fixing up bundle dependencies for \${executable_path}\")
+    include(BundleUtilities)
+    fixup_bundle(\"\${executable_path}\" \"\" \"\${search_dirs}\")
+    "
+  )
+
 elseif(UNIX AND NOT APPLE)
   install(TARGETS tempolink_juce_client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
