@@ -293,8 +293,7 @@ if(APPLE)
   # After installing the bundle, fix it up to include all necessary non-system
   # dylibs (like OpenSSL from Homebrew) to make it self-contained.
   install(CODE "
-    set(app_path \"${CMAKE_INSTALL_PREFIX}/TempoLink.app\")
-    set(executable_path \"\${app_path}/Contents/MacOS/TempoLink JUCE Client\")
+    set(app_path \"\${CMAKE_INSTALL_PREFIX}/TempoLink JUCE Client.app\")
 
     # Add common Homebrew paths to the search directory for libraries
     set(search_dirs \"/usr/local/lib;/usr/lib\")
@@ -302,9 +301,9 @@ if(APPLE)
       list(APPEND search_dirs \"/opt/homebrew/lib\")
     endif()
 
-    message(STATUS \"Fixing up bundle dependencies for \${executable_path}\")
+    message(STATUS \"Fixing up bundle dependencies for \${app_path}\")
     include(BundleUtilities)
-    fixup_bundle(\"\${executable_path}\" \"\" \"\${search_dirs}\")
+    fixup_bundle(\"\${app_path}\" \"\" \"\${search_dirs}\")
     "
   )
 
