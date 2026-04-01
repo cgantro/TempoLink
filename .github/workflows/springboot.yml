@@ -24,11 +24,11 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
-          cache: gradle
 
-      - name: Grant execute permission for gradlew
-        working-directory: SpringBoot/ControlPlaneService
-        run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
 
       - name: Build with Gradle
         working-directory: SpringBoot/ControlPlaneService
