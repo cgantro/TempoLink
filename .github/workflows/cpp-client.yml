@@ -27,8 +27,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Ninja
-        uses: ammaraskar/setup-ninja@master
+      - name: Setup CMake and Ninja
+        uses: lukka/get-cmake@latest
 
       - name: Install Ubuntu Dependencies
         if: runner.os == 'Linux'
