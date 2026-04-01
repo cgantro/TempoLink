@@ -156,9 +156,7 @@ fi
 
 # Collect all arguments for the java command,
 # such as the classpath, the main class, and any arguments.
-set -- "$JAVACMD" \
-    "$@" \
+exec "$JAVACMD" \
     -classpath "$CLASSPATH" \
-    org.gradle.wrapper.GradleWrapperMain
-
-exec "$@"
+    org.gradle.wrapper.GradleWrapperMain \
+    "$@"
