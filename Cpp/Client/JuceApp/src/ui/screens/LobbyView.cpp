@@ -7,6 +7,13 @@
 
 #include "tempolink/juce/style/UiStyle.h"
 
+namespace {
+constexpr int kJoinDialogWidth = 380;
+constexpr int kJoinDialogHeight = 190;
+constexpr int kCreateDialogWidth = 420;
+constexpr int kCreateDialogHeight = 240;
+}  // namespace
+
 LobbyView::LobbyView() {
   title_label_.setText("Rooms", juce::dontSendNotification);
   title_label_.setFont(juce::FontOptions(24.0F).withStyle("Bold"));
@@ -244,7 +251,8 @@ LobbyView::LobbyView() {
                               juce::KeyPress(juce::KeyPress::returnKey));
             dialog->addButton("Cancel", 0,
                               juce::KeyPress(juce::KeyPress::escapeKey));
-            dialog->centreAroundComponent(safe_this.getComponent(), 360, 150);
+            dialog->centreAroundComponent(safe_this.getComponent(), kJoinDialogWidth,
+                                          kJoinDialogHeight);
             dialog->setVisible(true);
             dialog->enterModalState(
                 true,
@@ -282,7 +290,8 @@ LobbyView::LobbyView() {
                               juce::KeyPress(juce::KeyPress::returnKey));
             dialog->addButton("Cancel", 0,
                               juce::KeyPress(juce::KeyPress::escapeKey));
-            dialog->centreAroundComponent(safe_this.getComponent(), 360, 160);
+            dialog->centreAroundComponent(safe_this.getComponent(), kCreateDialogWidth,
+                                          kCreateDialogHeight);
             dialog->setVisible(true);
             dialog->enterModalState(
                 true,

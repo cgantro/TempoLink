@@ -17,10 +17,15 @@ class ParticipantStripComponent final : public juce::Component {
   void setRuntimeMetrics(float level, int latency_ms, float packet_loss_percent,
                          ConnectionBadgeState connection_state);
   void setLevel(float level);
+  void setMonitorMix(float monitor_volume, float monitor_pan);
   void setOnAudioSettingsClicked(
       std::function<void(std::string)> on_audio_settings_clicked);
   void setOnReconnectClicked(
       std::function<void(std::string)> on_reconnect_clicked);
+  void setOnMonitorVolumeChanged(
+      std::function<void(std::string, float)> on_monitor_volume_changed);
+  void setOnMonitorPanChanged(
+      std::function<void(std::string, float)> on_monitor_pan_changed);
 
   void resized() override;
   void paint(juce::Graphics& g) override;
@@ -29,14 +34,21 @@ class ParticipantStripComponent final : public juce::Component {
   ParticipantSummary participant_;
   std::function<void(std::string)> on_audio_settings_clicked_;
   std::function<void(std::string)> on_reconnect_clicked_;
+  std::function<void(std::string, float)> on_monitor_volume_changed_;
+  std::function<void(std::string, float)> on_monitor_pan_changed_;
 
   juce::Label name_label_;
   juce::Label part_label_;
   juce::Label state_label_;
   juce::Slider level_slider_;
+  juce::Slider monitor_volume_slider_;
+  juce::Slider monitor_pan_slider_;
+  juce::Label monitor_volume_label_;
+  juce::Label monitor_pan_label_;
   juce::TextButton audio_settings_button_{"Audio"};
   juce::TextButton reconnect_button_{"Reconnect"};
   MetricLabel latency_metric_;
   MetricLabel loss_metric_;
   ConnectionBadge connection_badge_;
+  bool suppress_monitor_callbacks_ = false;
 };

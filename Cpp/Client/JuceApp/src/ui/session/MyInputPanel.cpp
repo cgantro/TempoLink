@@ -19,13 +19,74 @@ MyInputPanel::MyInputPanel() {
   body_.addAndMakeVisible(input_combo_);
   body_.addAndMakeVisible(output_combo_);
 
+  input_level_label_.setText("Input Level", juce::dontSendNotification);
+  input_level_label_.setColour(juce::Label::textColourId,
+                               tempolink::juceapp::style::TextPrimary());
+  input_level_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
+  body_.addAndMakeVisible(input_level_label_);
+  input_level_meter_.setColour(juce::ProgressBar::backgroundColourId,
+                               tempolink::juceapp::style::CardBackground());
+  input_level_meter_.setColour(juce::ProgressBar::foregroundColourId,
+                               tempolink::juceapp::style::ParticipantAvatarSelf());
+  body_.addAndMakeVisible(input_level_meter_);
+
+  input_gain_label_.setText("Input Gain", juce::dontSendNotification);
+  input_gain_label_.setColour(juce::Label::textColourId,
+                              tempolink::juceapp::style::TextPrimary());
+  input_gain_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
+  body_.addAndMakeVisible(input_gain_label_);
+
+  input_gain_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
+  input_gain_slider_.setRange(0.0, 2.0, 0.01);
+  input_gain_slider_.setValue(1.0);
+  input_gain_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 28);
+  input_gain_slider_.setNumDecimalPlacesToDisplay(2);
+  input_gain_slider_.setTextValueSuffix(" x");
+  input_gain_slider_.setColour(juce::Slider::textBoxTextColourId,
+                               tempolink::juceapp::style::TextPrimary());
+  input_gain_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
+                               tempolink::juceapp::style::CardBackground());
+  input_gain_slider_.setColour(juce::Slider::textBoxOutlineColourId,
+                               tempolink::juceapp::style::BorderStrong());
+  body_.addAndMakeVisible(input_gain_slider_);
+
+  reverb_label_.setText("Reverb", juce::dontSendNotification);
+  reverb_label_.setColour(juce::Label::textColourId,
+                          tempolink::juceapp::style::TextPrimary());
+  reverb_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
+  body_.addAndMakeVisible(reverb_label_);
+
+  reverb_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
+  reverb_slider_.setRange(0.0, 1.0, 0.01);
+  reverb_slider_.setValue(0.0);
+  reverb_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 28);
+  reverb_slider_.setNumDecimalPlacesToDisplay(2);
+  reverb_slider_.setTextValueSuffix(" mix");
+  reverb_slider_.setColour(juce::Slider::textBoxTextColourId,
+                           tempolink::juceapp::style::TextPrimary());
+  reverb_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
+                           tempolink::juceapp::style::CardBackground());
+  reverb_slider_.setColour(juce::Slider::textBoxOutlineColourId,
+                           tempolink::juceapp::style::BorderStrong());
+  body_.addAndMakeVisible(reverb_slider_);
+
   bpm_label_.setText("Metronome BPM", juce::dontSendNotification);
   bpm_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  bpm_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
   body_.addAndMakeVisible(bpm_label_);
 
   bpm_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
   bpm_slider_.setRange(30.0, 300.0, 1.0);
   bpm_slider_.setValue(120.0);
+  bpm_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 84, 28);
+  bpm_slider_.setNumDecimalPlacesToDisplay(0);
+  bpm_slider_.setTextValueSuffix(" BPM");
+  bpm_slider_.setColour(juce::Slider::textBoxTextColourId,
+                        tempolink::juceapp::style::TextPrimary());
+  bpm_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
+                        tempolink::juceapp::style::CardBackground());
+  bpm_slider_.setColour(juce::Slider::textBoxOutlineColourId,
+                        tempolink::juceapp::style::BorderStrong());
   body_.addAndMakeVisible(bpm_slider_);
 
   body_.addAndMakeVisible(mute_toggle_);
@@ -47,6 +108,16 @@ MyInputPanel::MyInputPanel() {
   mute_toggle_.onClick = [this] {
     if (!suppress_callbacks_ && on_mute_changed_) {
       on_mute_changed_(mute_toggle_.getToggleState());
+    }
+  };
+  input_gain_slider_.onValueChange = [this] {
+    if (!suppress_callbacks_ && on_input_gain_changed_) {
+      on_input_gain_changed_(static_cast<float>(input_gain_slider_.getValue()));
+    }
+  };
+  reverb_slider_.onValueChange = [this] {
+    if (!suppress_callbacks_ && on_input_reverb_changed_) {
+      on_input_reverb_changed_(static_cast<float>(reverb_slider_.getValue()));
     }
   };
   metronome_toggle_.onClick = [this] {
@@ -106,6 +177,25 @@ void MyInputPanel::setMute(bool muted) {
   suppress_callbacks_ = false;
 }
 
+void MyInputPanel::setInputLevel(float level) {
+  input_level_display_ = std::clamp(static_cast<double>(level), 0.0, 1.0);
+  input_level_meter_.repaint();
+}
+
+void MyInputPanel::setInputGain(float gain) {
+  suppress_callbacks_ = true;
+  input_gain_slider_.setValue(std::clamp(gain, 0.0F, 2.0F),
+                              juce::dontSendNotification);
+  suppress_callbacks_ = false;
+}
+
+void MyInputPanel::setInputReverb(float amount) {
+  suppress_callbacks_ = true;
+  reverb_slider_.setValue(std::clamp(amount, 0.0F, 1.0F),
+                          juce::dontSendNotification);
+  suppress_callbacks_ = false;
+}
+
 void MyInputPanel::setMetronomeEnabled(bool enabled) {
   suppress_callbacks_ = true;
   metronome_toggle_.setToggleState(enabled, juce::dontSendNotification);
@@ -120,6 +210,16 @@ void MyInputPanel::setMetronomeBpm(int bpm) {
 
 void MyInputPanel::setOnMuteChanged(std::function<void(bool)> on_mute_changed) {
   on_mute_changed_ = std::move(on_mute_changed);
+}
+
+void MyInputPanel::setOnInputGainChanged(
+    std::function<void(float)> on_input_gain_changed) {
+  on_input_gain_changed_ = std::move(on_input_gain_changed);
+}
+
+void MyInputPanel::setOnInputReverbChanged(
+    std::function<void(float)> on_input_reverb_changed) {
+  on_input_reverb_changed_ = std::move(on_input_reverb_changed);
 }
 
 void MyInputPanel::setOnMetronomeChanged(
@@ -155,12 +255,21 @@ void MyInputPanel::resized() {
   output_label_.setBounds(area.removeFromTop(20));
   output_combo_.setBounds(area.removeFromTop(28));
   area.removeFromTop(8);
+  input_level_label_.setBounds(area.removeFromTop(20));
+  input_level_meter_.setBounds(area.removeFromTop(20));
+  area.removeFromTop(4);
+  input_gain_label_.setBounds(area.removeFromTop(20));
+  input_gain_slider_.setBounds(area.removeFromTop(30));
+  area.removeFromTop(6);
+  reverb_label_.setBounds(area.removeFromTop(20));
+  reverb_slider_.setBounds(area.removeFromTop(30));
+  area.removeFromTop(6);
   mute_toggle_.setBounds(area.removeFromTop(24));
   area.removeFromTop(4);
   metronome_toggle_.setBounds(area.removeFromTop(24));
   area.removeFromTop(6);
-  bpm_label_.setBounds(area.removeFromTop(18));
-  bpm_slider_.setBounds(area.removeFromTop(24));
+  bpm_label_.setBounds(area.removeFromTop(20));
+  bpm_slider_.setBounds(area.removeFromTop(30));
   area.removeFromTop(10);
   audio_settings_button_.setBounds(area.removeFromTop(28).removeFromLeft(140));
 }

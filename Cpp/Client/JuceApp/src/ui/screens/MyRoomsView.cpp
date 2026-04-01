@@ -4,6 +4,11 @@
 
 #include "tempolink/juce/style/UiStyle.h"
 
+namespace {
+constexpr int kCreateDialogWidth = 420;
+constexpr int kCreateDialogHeight = 240;
+}  // namespace
+
 MyRoomsView::MyRoomsView() {
   title_label_.setText("MY ROOMS", juce::dontSendNotification);
   title_label_.setFont(juce::FontOptions(24.0F).withStyle("Bold"));
@@ -47,7 +52,7 @@ MyRoomsView::MyRoomsView() {
     }
     dialog->addButton("Create", 1, juce::KeyPress(juce::KeyPress::returnKey));
     dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
-    dialog->centreAroundComponent(this, 360, 160);
+    dialog->centreAroundComponent(this, kCreateDialogWidth, kCreateDialogHeight);
     dialog->setVisible(true);
     dialog->enterModalState(
         true,

@@ -25,11 +25,7 @@ class CoreAudioInputDevice final : public IAudioInputDevice {
   void CaptureLoop(std::stop_token stop_token, AudioCaptureConfig config,
                    AudioCaptureCallback callback);
 
-  std::vector<AudioDeviceInfo> devices_{
-      {"coreaudio-default", "CoreAudio Default Input", true},
-      {"coreaudio-virtual-in", "CoreAudio Virtual Input", false},
-  };
-  std::string selected_device_id_ = "coreaudio-default";
+  std::string selected_device_id_;
   std::jthread capture_thread_;
   std::atomic_bool running_{false};
 };

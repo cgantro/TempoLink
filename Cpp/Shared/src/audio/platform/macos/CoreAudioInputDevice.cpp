@@ -5,16 +5,19 @@
 #include <utility>
 #include <vector>
 
+#include "tempolink/audio/platform/macos/CoreAudioDeviceEnumerator.h"
+
 namespace tempolink::audio {
 
 std::vector<AudioDeviceInfo> CoreAudioInputDevice::ListDevices() const {
-  return devices_;
+  return platform::macos::detail::EnumerateCoreAudioInputDevices();
 }
 
 bool CoreAudioInputDevice::SelectDevice(const std::string& device_id) {
-  for (const auto& device : devices_) {
-    if (device.id == device_id) {
-      selected_device_id_ = device_id;
+  const auto devices = ListDevices();
+  for (const auto& device : devices) {
+    if (device.id == device_id || device.name == device_id) {
+      selected_device_id_ = (device.id == device_id) ? device_id : device.id;
       return true;
     }
   }
@@ -22,6 +25,20 @@ bool CoreAudioInputDevice::SelectDevice(const std::string& device_id) {
 }
 
 std::string CoreAudioInputDevice::SelectedDeviceId() const {
+  const auto devices = ListDevices();
+  for (const auto& device : devices) {
+    if (device.id == selected_device_id_) {
+      return selected_device_id_;
+    }
+  }
+  for (const auto& device : devices) {
+    if (device.is_default) {
+      return device.id;
+    }
+  }
+  if (!devices.empty()) {
+    return devices.front().id;
+  }
   return selected_device_id_;
 }
 

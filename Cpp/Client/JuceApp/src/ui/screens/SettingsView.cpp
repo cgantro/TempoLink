@@ -101,6 +101,28 @@ SettingsView::SettingsView() {
                           tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(apply_button_);
 
+  test_input_button_.onClick = [this] {
+    if (on_test_input_) {
+      on_test_input_();
+    }
+  };
+  test_input_button_.setColour(juce::TextButton::buttonColourId,
+                               tempolink::juceapp::style::CardBackground());
+  test_input_button_.setColour(juce::TextButton::textColourOffId,
+                               tempolink::juceapp::style::TextPrimary());
+  addAndMakeVisible(test_input_button_);
+
+  test_output_button_.onClick = [this] {
+    if (on_test_output_) {
+      on_test_output_();
+    }
+  };
+  test_output_button_.setColour(juce::TextButton::buttonColourId,
+                                tempolink::juceapp::style::CardBackground());
+  test_output_button_.setColour(juce::TextButton::textColourOffId,
+                                tempolink::juceapp::style::TextPrimary());
+  addAndMakeVisible(test_output_button_);
+
   save_profile_button_.onClick = [this] {
     if (!on_save_profile_) {
       return;
@@ -131,6 +153,14 @@ void SettingsView::setOnOutputDeviceChanged(
 
 void SettingsView::setOnApplyAudio(std::function<void(int, int)> on_apply_audio) {
   on_apply_audio_ = std::move(on_apply_audio);
+}
+
+void SettingsView::setOnTestInput(std::function<void()> on_test_input) {
+  on_test_input_ = std::move(on_test_input);
+}
+
+void SettingsView::setOnTestOutput(std::function<void()> on_test_output) {
+  on_test_output_ = std::move(on_test_output);
 }
 
 void SettingsView::setOnSaveProfile(
@@ -218,6 +248,10 @@ void SettingsView::resized() {
   buffer_combo_.setBounds(row2.removeFromLeft(140));
   row2.removeFromLeft(20);
   apply_button_.setBounds(row2.removeFromLeft(100));
+  row2.removeFromLeft(10);
+  test_input_button_.setBounds(row2.removeFromLeft(110));
+  row2.removeFromLeft(8);
+  test_output_button_.setBounds(row2.removeFromLeft(110));
   row2.removeFromLeft(10);
   save_profile_button_.setBounds(row2.removeFromLeft(130));
 

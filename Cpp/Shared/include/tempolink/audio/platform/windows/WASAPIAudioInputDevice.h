@@ -25,11 +25,8 @@ class WASAPIAudioInputDevice final : public IAudioInputDevice {
   void CaptureLoop(std::stop_token stop_token, AudioCaptureConfig config,
                    AudioCaptureCallback callback);
 
-  std::vector<AudioDeviceInfo> devices_{
-      {"wasapi-default", "WASAPI Default Input", true},
-      {"wasapi-virtual-in", "WASAPI Virtual Input", false},
-  };
-  std::string selected_device_id_ = "wasapi-default";
+  std::string selected_device_id_;
+  AudioCaptureConfig config_{};
   std::jthread capture_thread_;
   std::atomic_bool running_{false};
 };

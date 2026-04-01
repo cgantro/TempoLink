@@ -37,6 +37,49 @@ ParticipantStripComponent::ParticipantStripComponent() {
   level_slider_.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
   addAndMakeVisible(level_slider_);
 
+  monitor_volume_label_.setText("Vol", juce::dontSendNotification);
+  monitor_volume_label_.setJustificationType(juce::Justification::centredLeft);
+  monitor_volume_label_.setColour(juce::Label::textColourId,
+                                  tempolink::juceapp::style::TextSecondary());
+  addAndMakeVisible(monitor_volume_label_);
+
+  monitor_volume_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
+  monitor_volume_slider_.setRange(0.0, 1.5, 0.01);
+  monitor_volume_slider_.setValue(1.0, juce::dontSendNotification);
+  monitor_volume_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 48, 18);
+  monitor_volume_slider_.onValueChange = [this] {
+    if (suppress_monitor_callbacks_) {
+      return;
+    }
+    participant_.monitor_volume =
+        static_cast<float>(monitor_volume_slider_.getValue());
+    if (on_monitor_volume_changed_ && !participant_.user_id.empty()) {
+      on_monitor_volume_changed_(participant_.user_id, participant_.monitor_volume);
+    }
+  };
+  addAndMakeVisible(monitor_volume_slider_);
+
+  monitor_pan_label_.setText("Pan", juce::dontSendNotification);
+  monitor_pan_label_.setJustificationType(juce::Justification::centredLeft);
+  monitor_pan_label_.setColour(juce::Label::textColourId,
+                               tempolink::juceapp::style::TextSecondary());
+  addAndMakeVisible(monitor_pan_label_);
+
+  monitor_pan_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
+  monitor_pan_slider_.setRange(-1.0, 1.0, 0.01);
+  monitor_pan_slider_.setValue(0.0, juce::dontSendNotification);
+  monitor_pan_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 48, 18);
+  monitor_pan_slider_.onValueChange = [this] {
+    if (suppress_monitor_callbacks_) {
+      return;
+    }
+    participant_.monitor_pan = static_cast<float>(monitor_pan_slider_.getValue());
+    if (on_monitor_pan_changed_ && !participant_.user_id.empty()) {
+      on_monitor_pan_changed_(participant_.user_id, participant_.monitor_pan);
+    }
+  };
+  addAndMakeVisible(monitor_pan_slider_);
+
   audio_settings_button_.onClick = [this] {
     const auto callback = on_audio_settings_clicked_;
     const auto user_id = participant_.user_id;
@@ -106,6 +149,7 @@ void ParticipantStripComponent::setParticipant(
   reconnect_button_.setEnabled(!participant_.is_self);
   audio_settings_button_.setButtonText(participant_.is_self ? "Audio" : "Peer");
   setLevel(participant_.level);
+  setMonitorMix(participant_.monitor_volume, participant_.monitor_pan);
 }
 
 void ParticipantStripComponent::setRuntimeMetrics(float level, int latency_ms,
@@ -127,6 +171,15 @@ void ParticipantStripComponent::setLevel(float level) {
   level_slider_.setValue(std::clamp(level, 0.0F, 1.0F), juce::dontSendNotification);
 }
 
+void ParticipantStripComponent::setMonitorMix(float monitor_volume, float monitor_pan) {
+  participant_.monitor_volume = std::clamp(monitor_volume, 0.0F, 1.5F);
+  participant_.monitor_pan = std::clamp(monitor_pan, -1.0F, 1.0F);
+  suppress_monitor_callbacks_ = true;
+  monitor_volume_slider_.setValue(participant_.monitor_volume, juce::dontSendNotification);
+  monitor_pan_slider_.setValue(participant_.monitor_pan, juce::dontSendNotification);
+  suppress_monitor_callbacks_ = false;
+}
+
 void ParticipantStripComponent::setOnAudioSettingsClicked(
     std::function<void(std::string)> on_audio_settings_clicked) {
   on_audio_settings_clicked_ = std::move(on_audio_settings_clicked);
@@ -135,6 +188,16 @@ void ParticipantStripComponent::setOnAudioSettingsClicked(
 void ParticipantStripComponent::setOnReconnectClicked(
     std::function<void(std::string)> on_reconnect_clicked) {
   on_reconnect_clicked_ = std::move(on_reconnect_clicked);
+}
+
+void ParticipantStripComponent::setOnMonitorVolumeChanged(
+    std::function<void(std::string, float)> on_monitor_volume_changed) {
+  on_monitor_volume_changed_ = std::move(on_monitor_volume_changed);
+}
+
+void ParticipantStripComponent::setOnMonitorPanChanged(
+    std::function<void(std::string, float)> on_monitor_pan_changed) {
+  on_monitor_pan_changed_ = std::move(on_monitor_pan_changed);
 }
 
 void ParticipantStripComponent::resized() {
@@ -163,8 +226,21 @@ void ParticipantStripComponent::resized() {
   loss_metric_.setBounds(metrics.removeFromLeft(90));
 
   area.removeFromTop(4);
-  area.removeFromLeft(34);
-  level_slider_.setBounds(area.removeFromTop(14));
+  auto level_row = area.removeFromTop(18);
+  level_row.removeFromLeft(34);
+  level_slider_.setBounds(level_row);
+
+  area.removeFromTop(4);
+  auto monitor_volume_row = area.removeFromTop(22);
+  monitor_volume_row.removeFromLeft(34);
+  monitor_volume_label_.setBounds(monitor_volume_row.removeFromLeft(34));
+  monitor_volume_slider_.setBounds(monitor_volume_row);
+
+  area.removeFromTop(2);
+  auto monitor_pan_row = area.removeFromTop(22);
+  monitor_pan_row.removeFromLeft(34);
+  monitor_pan_label_.setBounds(monitor_pan_row.removeFromLeft(34));
+  monitor_pan_slider_.setBounds(monitor_pan_row);
 }
 
 void ParticipantStripComponent::paint(juce::Graphics& g) {

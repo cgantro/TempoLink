@@ -47,8 +47,19 @@ class ClientSession {
 
   void SetMuted(bool muted);
   bool IsMuted() const;
+  void SetInputGain(float gain);
+  float InputGain() const;
+  void SetInputReverb(float amount);
+  float InputReverb() const;
   void SetVolume(float volume);
   float Volume() const;
+  float InputLevel() const;
+  float OutputLevel() const;
+  float PeerLevel(std::uint32_t participant_id) const;
+  void SetPeerMonitorVolume(std::uint32_t participant_id, float volume);
+  void SetPeerMonitorPan(std::uint32_t participant_id, float pan);
+  float PeerMonitorVolume(std::uint32_t participant_id) const;
+  float PeerMonitorPan(std::uint32_t participant_id) const;
   std::string AudioBackendName() const;
 
   std::vector<std::string> AvailableInputDevices() const;
@@ -89,6 +100,7 @@ class ClientSession {
   AudioPipeline audio_pipeline_;
   ClockSyncTracker clock_sync_tracker_;
   std::unordered_map<std::uint32_t, PeerJitterBuffer> peer_jitter_buffers_;
+  std::unordered_map<std::uint32_t, float> peer_levels_;
 };
 
 }  // namespace tempolink::client

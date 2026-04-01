@@ -30,7 +30,8 @@ void RefreshSessionStatusView(SessionView& session_view,
                               const IceConfigSnapshot& ice_config);
 
 void RefreshParticipantLevels(std::vector<ParticipantSummary>& participants,
-                              SessionView& session_view, int tick_index,
+                              SessionView& session_view,
+                              const tempolink::client::ClientSession& session,
                               const tempolink::client::ClientSession::Stats& stats,
                               bool signaling_connected,
                               const std::unordered_map<std::string, int>& peer_latency_ms,

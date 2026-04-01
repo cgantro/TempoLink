@@ -14,6 +14,8 @@ class SettingsView final : public juce::Component {
   void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed);
   void setOnOutputDeviceChanged(std::function<void(std::string)> on_output_changed);
   void setOnApplyAudio(std::function<void(int, int)> on_apply_audio);
+  void setOnTestInput(std::function<void()> on_test_input);
+  void setOnTestOutput(std::function<void()> on_test_output);
   void setOnSaveProfile(std::function<void(std::string, std::string)> on_save_profile);
 
   void setDevices(const std::vector<std::string>& input_devices,
@@ -32,6 +34,8 @@ class SettingsView final : public juce::Component {
   std::function<void(std::string)> on_input_changed_;
   std::function<void(std::string)> on_output_changed_;
   std::function<void(int, int)> on_apply_audio_;
+  std::function<void()> on_test_input_;
+  std::function<void()> on_test_output_;
   std::function<void(std::string, std::string)> on_save_profile_;
 
   juce::TextButton back_button_{"<- Rooms"};
@@ -50,6 +54,8 @@ class SettingsView final : public juce::Component {
   juce::ComboBox sample_rate_combo_;
   juce::ComboBox buffer_combo_;
   juce::TextButton apply_button_{"Apply"};
+  juce::TextButton test_input_button_{"Test Input"};
+  juce::TextButton test_output_button_{"Test Output"};
   juce::TextEditor nickname_editor_;
   juce::TextEditor bio_editor_;
   juce::TextButton save_profile_button_{"Save Profile"};

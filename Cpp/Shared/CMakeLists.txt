@@ -13,6 +13,7 @@ if(WIN32)
   list(APPEND TEMPOLINK_COMMON_SOURCES
     src/audio/factory/AudioInputFactoryWindows.cpp
     src/audio/factory/AudioOutputFactoryWindows.cpp
+    src/audio/platform/windows/WASAPIDeviceEnumerator.cpp
     src/audio/platform/windows/WASAPIAudioInputDevice.cpp
     src/audio/platform/windows/WASAPIAudioOutputDevice.cpp
   )
@@ -20,6 +21,7 @@ elseif(APPLE)
   list(APPEND TEMPOLINK_COMMON_SOURCES
     src/audio/factory/AudioInputFactoryMacOS.cpp
     src/audio/factory/AudioOutputFactoryMacOS.cpp
+    src/audio/platform/macos/CoreAudioDeviceEnumerator.cpp
     src/audio/platform/macos/CoreAudioInputDevice.cpp
     src/audio/platform/macos/CoreAudioOutputDevice.cpp
   )
@@ -81,5 +83,10 @@ if(TEMPOLINK_ENABLE_OPUS)
 endif()
 
 if(WIN32)
-  target_link_libraries(tempolink_common PUBLIC ws2_32)
+  target_link_libraries(tempolink_common PUBLIC ws2_32 ole32 uuid avrt)
+elseif(APPLE)
+  target_link_libraries(tempolink_common PUBLIC
+    "-framework CoreAudio"
+    "-framework CoreFoundation"
+  )
 endif()

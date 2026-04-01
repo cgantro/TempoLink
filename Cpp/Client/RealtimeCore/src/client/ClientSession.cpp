@@ -1,5 +1,6 @@
 #include "tempolink/client/ClientSession.h"
 
+#include <algorithm>
 #include <chrono>
 #include <utility>
 
@@ -33,6 +34,7 @@ bool ClientSession::Start(const Config& config) {
   last_ping_sent_ = std::chrono::steady_clock::time_point::min();
   last_clock_sync_sent_ = std::chrono::steady_clock::time_point::min();
   peer_jitter_buffers_.clear();
+  peer_levels_.clear();
   clock_sync_tracker_ = ClockSyncTracker{};
 
   ClientTransport::Endpoint endpoint;
@@ -76,6 +78,7 @@ void ClientSession::Stop() {
   stats_.joined = false;
   stats_.connected = false;
   peer_jitter_buffers_.clear();
+  peer_levels_.clear();
   audio_pipeline_.Stop();
   transport_.Stop();
 }
@@ -117,6 +120,15 @@ bool ClientSession::Tick() {
     return false;
   }
 
+  for (auto it = peer_levels_.begin(); it != peer_levels_.end();) {
+    it->second *= 0.90F;
+    if (it->second < 0.01F) {
+      it = peer_levels_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
   bool processed = false;
   tempolink::net::Packet packet;
   while (transport_.PollPacket(packet)) {
@@ -142,6 +154,10 @@ bool ClientSession::Tick() {
       auto& jitter_buffer = peer_jitter_buffers_[packet.header.sender_id];
       jitter_buffer.Push(packet.header.sequence, packet.header.timestamp_us,
                          packet.payload);
+      auto& peer_level = peer_levels_[packet.header.sender_id];
+      const float boost = std::clamp(
+          static_cast<float>(packet.payload.size()) / 480.0F, 0.04F, 0.35F);
+      peer_level = std::clamp(peer_level + boost, 0.0F, 1.0F);
     }
   }
 
@@ -150,7 +166,7 @@ bool ClientSession::Tick() {
     (void)sender_id;
     const auto ready_frames = jitter_buffer.PopReady(kTargetJitterDepthPackets);
     for (const auto& frame : ready_frames) {
-      audio_pipeline_.HandleIncomingAudio(frame.payload);
+      audio_pipeline_.HandleIncomingAudio(frame.payload, sender_id);
     }
   }
 
@@ -183,9 +199,47 @@ void ClientSession::SetMuted(bool muted) { audio_pipeline_.SetMuted(muted); }
 
 bool ClientSession::IsMuted() const { return audio_pipeline_.IsMuted(); }
 
+void ClientSession::SetInputGain(float gain) { audio_pipeline_.SetInputGain(gain); }
+
+float ClientSession::InputGain() const { return audio_pipeline_.InputGain(); }
+
+void ClientSession::SetInputReverb(float amount) {
+  audio_pipeline_.SetInputReverb(amount);
+}
+
+float ClientSession::InputReverb() const { return audio_pipeline_.InputReverb(); }
+
 void ClientSession::SetVolume(float volume) { audio_pipeline_.SetVolume(volume); }
 
 float ClientSession::Volume() const { return audio_pipeline_.Volume(); }
+
+float ClientSession::InputLevel() const { return audio_pipeline_.InputLevel(); }
+
+float ClientSession::OutputLevel() const { return audio_pipeline_.OutputLevel(); }
+
+float ClientSession::PeerLevel(std::uint32_t participant_id) const {
+  const auto it = peer_levels_.find(participant_id);
+  if (it == peer_levels_.end()) {
+    return 0.0F;
+  }
+  return std::clamp(it->second, 0.0F, 1.0F);
+}
+
+void ClientSession::SetPeerMonitorVolume(std::uint32_t participant_id, float volume) {
+  audio_pipeline_.SetPeerMonitorVolume(participant_id, volume);
+}
+
+void ClientSession::SetPeerMonitorPan(std::uint32_t participant_id, float pan) {
+  audio_pipeline_.SetPeerMonitorPan(participant_id, pan);
+}
+
+float ClientSession::PeerMonitorVolume(std::uint32_t participant_id) const {
+  return audio_pipeline_.PeerMonitorVolume(participant_id);
+}
+
+float ClientSession::PeerMonitorPan(std::uint32_t participant_id) const {
+  return audio_pipeline_.PeerMonitorPan(participant_id);
+}
 
 std::string ClientSession::AudioBackendName() const {
   return audio_pipeline_.AudioBackendName();

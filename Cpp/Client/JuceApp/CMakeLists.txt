@@ -78,10 +78,17 @@ target_sources(
   PRIVATE
     include/tempolink/juce/MainComponent.h
     include/tempolink/juce/app/ClientAppPresenter.h
+    include/tempolink/juce/app/auth/AuthController.h
+    include/tempolink/juce/app/content/ContentController.h
     include/tempolink/juce/app/LobbyBindings.h
+    include/tempolink/juce/app/lobby/LobbyDataController.h
+    include/tempolink/juce/app/navigation/ScreenMode.h
+    include/tempolink/juce/app/navigation/ScreenNavigator.h
     include/tempolink/juce/app/ParticipantRosterBuilder.h
     include/tempolink/juce/app/RoomCatalog.h
     include/tempolink/juce/app/RoomCommandController.h
+    include/tempolink/juce/app/session/SessionLifecycleController.h
+    include/tempolink/juce/app/session/SessionPresenceController.h
     include/tempolink/juce/app/SessionBindings.h
     include/tempolink/juce/app/SessionModelSupport.h
     include/tempolink/juce/bridge/UdpAudioBridgePort.h
@@ -133,10 +140,20 @@ target_sources(
     src/AppMain.cpp
     src/MainComponent.cpp
     src/app/ClientAppPresenter.cpp
+    src/app/ClientAppPresenter.LoginBindings.cpp
+    src/app/ClientAppPresenter.LobbyBindings.cpp
+    src/app/ClientAppPresenter.SessionBindings.cpp
+    src/app/ClientAppPresenter.UtilityBindings.cpp
+    src/app/auth/AuthController.cpp
+    src/app/content/ContentController.cpp
     src/app/LobbyBindings.cpp
+    src/app/lobby/LobbyDataController.cpp
+    src/app/navigation/ScreenNavigator.cpp
     src/app/ParticipantRosterBuilder.cpp
     src/app/RoomCatalog.cpp
     src/app/RoomCommandController.cpp
+    src/app/session/SessionLifecycleController.cpp
+    src/app/session/SessionPresenceController.cpp
     src/app/SessionBindings.cpp
     src/app/SessionModelSupport.cpp
     src/config/ClientEnvConfig.cpp

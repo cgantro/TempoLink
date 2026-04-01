@@ -24,6 +24,8 @@ struct ParticipantSummary {
   bool is_recording = false;
   bool is_monitoring = false;
   float level = 0.0F;
+  float monitor_volume = 1.0F;
+  float monitor_pan = 0.0F;
   int latency_ms = 0;
   float packet_loss_percent = 0.0F;
   ConnectionBadgeState connection_state = ConnectionBadgeState::Unknown;

@@ -1,8 +1,10 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "tempolink/audio/IAudioOutputDevice.h"
@@ -22,20 +24,18 @@ class WASAPIAudioOutputDevice final : public IAudioOutputDevice {
 
   void SetOutputVolume(float gain) override;
   float OutputVolume() const override;
-  void PlayFrame(std::span<const std::int16_t> pcm) override;
+ void PlayFrame(std::span<const std::int16_t> pcm) override;
 
  private:
-  std::vector<AudioDeviceInfo> devices_{
-      {"wasapi-default", "WASAPI Default Output", true},
-      {"wasapi-virtual-out", "WASAPI Virtual Output", false},
-  };
-  std::string selected_device_id_ = "wasapi-default";
+  void RenderLoop(std::stop_token stop_token);
+
+  std::string selected_device_id_;
+  AudioPlaybackConfig config_{};
   std::atomic_bool running_{false};
   std::atomic<float> output_volume_{1.0F};
-  std::mutex last_frame_mutex_;
-  std::vector<std::int16_t> last_frame_;
-  AudioPlaybackConfig config_{};
+  std::jthread render_thread_;
+  mutable std::mutex queue_mutex_;
+  std::deque<std::int16_t> pending_samples_;
 };
 
 }  // namespace tempolink::audio
-

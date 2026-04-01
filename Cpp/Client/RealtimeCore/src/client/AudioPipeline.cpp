@@ -17,9 +17,35 @@ std::vector<std::string> ToDeviceIds(
   std::vector<std::string> ids;
   ids.reserve(devices.size());
   for (const auto& device : devices) {
-    ids.push_back(device.id);
+    if (!device.name.empty()) {
+      ids.push_back(device.name);
+    } else {
+      ids.push_back(device.id);
+    }
   }
   return ids;
+}
+
+std::string ToDisplayDevice(const std::vector<tempolink::audio::AudioDeviceInfo>& devices,
+                            const std::string& token) {
+  if (token.empty()) {
+    for (const auto& device : devices) {
+      if (device.is_default) {
+        return device.name.empty() ? device.id : device.name;
+      }
+    }
+    if (!devices.empty()) {
+      return devices.front().name.empty() ? devices.front().id : devices.front().name;
+    }
+    return {};
+  }
+
+  for (const auto& device : devices) {
+    if (device.id == token || device.name == token) {
+      return device.name.empty() ? device.id : device.name;
+    }
+  }
+  return token;
 }
 
 std::int16_t ClampPcm(float sample) {
@@ -27,6 +53,39 @@ std::int16_t ClampPcm(float sample) {
   constexpr float kMax = 32767.0F;
   const float clamped = std::clamp(sample, kMin, kMax);
   return static_cast<std::int16_t>(clamped);
+}
+
+float ComputeNormalizedPeak(std::span<const std::int16_t> pcm) {
+  if (pcm.empty()) {
+    return 0.0F;
+  }
+
+  std::int32_t max_abs = 0;
+  for (const auto sample : pcm) {
+    const auto abs_sample = std::abs(static_cast<std::int32_t>(sample));
+    if (abs_sample > max_abs) {
+      max_abs = abs_sample;
+    }
+  }
+
+  constexpr float kInvMax = 1.0F / 32768.0F;
+  return std::clamp(static_cast<float>(max_abs) * kInvMax, 0.0F, 1.0F);
+}
+
+float SmoothLevel(float previous, float incoming) {
+  // Fast rise, slower fall to make meter readable without heavy jitter.
+  constexpr float kRise = 0.45F;
+  constexpr float kFall = 0.12F;
+  const float alpha = incoming >= previous ? kRise : kFall;
+  return std::clamp(previous + (incoming - previous) * alpha, 0.0F, 1.0F);
+}
+
+void ComputePanGains(float pan, float& left_gain, float& right_gain) {
+  constexpr float kPiOverFour = 0.78539816339F;
+  const float clamped_pan = std::clamp(pan, -1.0F, 1.0F);
+  const float angle = (clamped_pan + 1.0F) * kPiOverFour;
+  left_gain = std::cos(angle);
+  right_gain = std::sin(angle);
 }
 
 bool InitializeCodecPair(
@@ -93,6 +152,15 @@ bool AudioPipeline::Start(EncodedFrameCallback on_frame_encoded) {
   running_ = true;
   metronome_phase_samples_ = 0;
   metronome_beat_index_ = 0;
+  reverb_write_index_ = 0;
+  {
+    std::scoped_lock lock(peer_mix_mutex_);
+    peer_monitor_mix_.clear();
+  }
+  const std::size_t reverb_len =
+      static_cast<std::size_t>(capture_config_.sample_rate_hz / 20U) *
+      std::max<std::size_t>(1, capture_config_.channels);
+  reverb_delay_line_.assign(std::max<std::size_t>(1, reverb_len), 0);
 
   if (!audio_input_->Start(
           capture_config_, [this](std::span<const std::int16_t> pcm) {
@@ -124,6 +192,12 @@ void AudioPipeline::Stop() {
   audio_decoder_.reset();
   metronome_phase_samples_ = 0;
   metronome_beat_index_ = 0;
+  reverb_delay_line_.clear();
+  reverb_write_index_ = 0;
+  {
+    std::scoped_lock lock(peer_mix_mutex_);
+    peer_monitor_mix_.clear();
+  }
 }
 
 bool AudioPipeline::IsRunning() const { return running_.load(); }
@@ -131,6 +205,18 @@ bool AudioPipeline::IsRunning() const { return running_.load(); }
 void AudioPipeline::SetMuted(bool muted) { muted_.store(muted); }
 
 bool AudioPipeline::IsMuted() const { return muted_.load(); }
+
+void AudioPipeline::SetInputGain(float gain) {
+  input_gain_.store(std::clamp(gain, 0.0F, 2.0F));
+}
+
+float AudioPipeline::InputGain() const { return input_gain_.load(); }
+
+void AudioPipeline::SetInputReverb(float amount) {
+  input_reverb_.store(std::clamp(amount, 0.0F, 1.0F));
+}
+
+float AudioPipeline::InputReverb() const { return input_reverb_.load(); }
 
 void AudioPipeline::SetVolume(float volume) {
   const float clamped = std::clamp(volume, 0.0F, 1.0F);
@@ -141,6 +227,10 @@ void AudioPipeline::SetVolume(float volume) {
 }
 
 float AudioPipeline::Volume() const { return volume_.load(); }
+
+float AudioPipeline::InputLevel() const { return input_level_.load(); }
+
+float AudioPipeline::OutputLevel() const { return output_level_.load(); }
 
 std::string AudioPipeline::AudioBackendName() const {
   std::string input_backend = "input-uninitialized";
@@ -194,16 +284,24 @@ bool AudioPipeline::SetOutputDevice(const std::string& device_id) {
 
 std::string AudioPipeline::SelectedInputDevice() const {
   if (audio_input_) {
-    return audio_input_->SelectedDeviceId();
+    return ToDisplayDevice(audio_input_->ListDevices(), audio_input_->SelectedDeviceId());
   }
-  return selected_input_device_;
+  auto temp_input = tempolink::audio::CreateDefaultAudioInputDevice();
+  if (!temp_input) {
+    return selected_input_device_;
+  }
+  return ToDisplayDevice(temp_input->ListDevices(), selected_input_device_);
 }
 
 std::string AudioPipeline::SelectedOutputDevice() const {
   if (audio_output_) {
-    return audio_output_->SelectedDeviceId();
+    return ToDisplayDevice(audio_output_->ListDevices(), audio_output_->SelectedDeviceId());
   }
-  return selected_output_device_;
+  auto temp_output = tempolink::audio::CreateDefaultAudioOutputDevice();
+  if (!temp_output) {
+    return selected_output_device_;
+  }
+  return ToDisplayDevice(temp_output->ListDevices(), selected_output_device_);
 }
 
 bool AudioPipeline::ConfigureAudioFormat(std::uint32_t sample_rate_hz,
@@ -246,6 +344,11 @@ bool AudioPipeline::ConfigureAudioFormat(std::uint32_t sample_rate_hz,
     Stop();
     return false;
   }
+  reverb_write_index_ = 0;
+  const std::size_t reverb_len =
+      static_cast<std::size_t>(capture_config_.sample_rate_hz / 20U) *
+      std::max<std::size_t>(1, capture_config_.channels);
+  reverb_delay_line_.assign(std::max<std::size_t>(1, reverb_len), 0);
   return true;
 }
 
@@ -281,8 +384,50 @@ void AudioPipeline::SetMetronomeVolume(float volume) {
 
 float AudioPipeline::MetronomeVolume() const { return metronome_volume_.load(); }
 
+void AudioPipeline::SetPeerMonitorVolume(std::uint32_t participant_id, float volume) {
+  if (participant_id == 0) {
+    return;
+  }
+  std::scoped_lock lock(peer_mix_mutex_);
+  auto& mix = peer_monitor_mix_[participant_id];
+  mix.volume = std::clamp(volume, 0.0F, 1.5F);
+}
+
+void AudioPipeline::SetPeerMonitorPan(std::uint32_t participant_id, float pan) {
+  if (participant_id == 0) {
+    return;
+  }
+  std::scoped_lock lock(peer_mix_mutex_);
+  auto& mix = peer_monitor_mix_[participant_id];
+  mix.pan = std::clamp(pan, -1.0F, 1.0F);
+}
+
+float AudioPipeline::PeerMonitorVolume(std::uint32_t participant_id) const {
+  if (participant_id == 0) {
+    return 1.0F;
+  }
+  std::scoped_lock lock(peer_mix_mutex_);
+  const auto it = peer_monitor_mix_.find(participant_id);
+  if (it == peer_monitor_mix_.end()) {
+    return 1.0F;
+  }
+  return it->second.volume;
+}
+
+float AudioPipeline::PeerMonitorPan(std::uint32_t participant_id) const {
+  if (participant_id == 0) {
+    return 0.0F;
+  }
+  std::scoped_lock lock(peer_mix_mutex_);
+  const auto it = peer_monitor_mix_.find(participant_id);
+  if (it == peer_monitor_mix_.end()) {
+    return 0.0F;
+  }
+  return it->second.pan;
+}
+
 void AudioPipeline::HandleIncomingAudio(
-    std::span<const std::byte> encoded_payload) {
+    std::span<const std::byte> encoded_payload, std::uint32_t sender_participant_id) {
   if (!running_.load() || !audio_decoder_ || !audio_output_) {
     return;
   }
@@ -292,9 +437,46 @@ void AudioPipeline::HandleIncomingAudio(
     return;
   }
 
-  const float gain = volume_.load();
-  for (auto& sample : decoded) {
-    sample = ClampPcm(static_cast<float>(sample) * gain);
+  const float decoded_peak = ComputeNormalizedPeak(
+      std::span<const std::int16_t>(decoded.data(), decoded.size()));
+  const float prev_output_level = output_level_.load();
+  output_level_.store(SmoothLevel(prev_output_level, decoded_peak));
+
+  PeerMonitorMix peer_mix;
+  {
+    std::scoped_lock lock(peer_mix_mutex_);
+    const auto it = peer_monitor_mix_.find(sender_participant_id);
+    if (it != peer_monitor_mix_.end()) {
+      peer_mix = it->second;
+    }
+  }
+
+  const float global_gain = volume_.load();
+  const float peer_gain = std::clamp(peer_mix.volume, 0.0F, 1.5F);
+  const float total_gain = global_gain * peer_gain;
+  const std::size_t channels = std::max<std::size_t>(1, playback_config_.channels);
+  if (channels >= 2 && decoded.size() >= 2) {
+    float left_pan_gain = 1.0F;
+    float right_pan_gain = 1.0F;
+    ComputePanGains(peer_mix.pan, left_pan_gain, right_pan_gain);
+    for (std::size_t i = 0; i < decoded.size(); i += channels) {
+      if (i >= decoded.size()) {
+        break;
+      }
+      decoded[i] = ClampPcm(static_cast<float>(decoded[i]) * total_gain * left_pan_gain);
+      if (i + 1U < decoded.size()) {
+        decoded[i + 1] =
+            ClampPcm(static_cast<float>(decoded[i + 1]) * total_gain * right_pan_gain);
+      }
+      for (std::size_t ch = 2; ch < channels && i + ch < decoded.size(); ++ch) {
+        decoded[i + ch] =
+            ClampPcm(static_cast<float>(decoded[i + ch]) * total_gain);
+      }
+    }
+  } else {
+    for (auto& sample : decoded) {
+      sample = ClampPcm(static_cast<float>(sample) * total_gain);
+    }
   }
 
   auto bridge = audio_bridge_;
@@ -307,7 +489,7 @@ void AudioPipeline::HandleIncomingAudio(
 }
 
 void AudioPipeline::OnCapturedFrame(std::span<const std::int16_t> pcm) {
-  if (!running_.load() || muted_.load() || !audio_encoder_) {
+  if (!running_.load() || !audio_encoder_) {
     return;
   }
 
@@ -318,7 +500,24 @@ void AudioPipeline::OnCapturedFrame(std::span<const std::int16_t> pcm) {
     return;
   }
 
+  if (muted_.load()) {
+    const float prev_input_level = input_level_.load();
+    input_level_.store(SmoothLevel(prev_input_level, 0.0F));
+    return;
+  }
+
   std::vector<std::int16_t> mixed(pcm.begin(), pcm.begin() + expected_samples);
+  const float input_gain = input_gain_.load();
+  if (std::abs(input_gain - 1.0F) > 0.0001F) {
+    for (auto& sample : mixed) {
+      sample = ClampPcm(static_cast<float>(sample) * input_gain);
+    }
+  }
+  const float input_peak = ComputeNormalizedPeak(
+      std::span<const std::int16_t>(mixed.data(), mixed.size()));
+  const float prev_input_level = input_level_.load();
+  input_level_.store(SmoothLevel(prev_input_level, input_peak));
+  ApplySimpleReverb(mixed);
   MixMetronomeClick(mixed);
 
   auto bridge = audio_bridge_;
@@ -340,6 +539,28 @@ void AudioPipeline::OnCapturedFrame(std::span<const std::int16_t> pcm) {
     return;
   }
   callback(encoded);
+}
+
+void AudioPipeline::ApplySimpleReverb(std::vector<std::int16_t>& pcm) {
+  const float amount = input_reverb_.load();
+  if (amount <= 0.0001F || pcm.empty() || reverb_delay_line_.empty()) {
+    return;
+  }
+
+  const float wet = std::clamp(amount, 0.0F, 1.0F) * 0.55F;
+  const float feedback = 0.30F + (wet * 0.35F);
+  for (auto& sample : pcm) {
+    const float dry_sample = static_cast<float>(sample);
+    const float delayed = static_cast<float>(reverb_delay_line_[reverb_write_index_]);
+    const float mixed = dry_sample + (delayed * wet);
+    sample = ClampPcm(mixed);
+    const float next_delay = (dry_sample * 0.45F) + (delayed * feedback);
+    reverb_delay_line_[reverb_write_index_] = ClampPcm(next_delay);
+    ++reverb_write_index_;
+    if (reverb_write_index_ >= reverb_delay_line_.size()) {
+      reverb_write_index_ = 0;
+    }
+  }
 }
 
 void AudioPipeline::MixMetronomeClick(std::vector<std::int16_t>& pcm) {

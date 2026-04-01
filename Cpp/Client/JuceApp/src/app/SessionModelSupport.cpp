@@ -1,6 +1,6 @@
 #include "tempolink/juce/app/SessionModelSupport.h"
 
-#include <cmath>
+#include <algorithm>
 
 #include <juce_core/juce_core.h>
 
@@ -9,16 +9,6 @@
 
 namespace tempolink::juceapp::app {
 namespace {
-
-float AnimatedLevel(int tick_index, int phase_offset) {
-  const float phase =
-      static_cast<float>((tick_index + phase_offset) %
-                         tempolink::juceapp::style::kAnimatedCycle) *
-      tempolink::juceapp::style::kAnimatedPhaseStep;
-  const float wave = 0.5F + 0.5F * std::sin(phase);
-  return juce::jlimit(tempolink::juceapp::style::kAnimatedLevelMin,
-                      tempolink::juceapp::style::kAnimatedLevelMax, wave);
-}
 
 ConnectionBadgeState ResolveConnectionState(
     const tempolink::client::ClientSession::Stats& stats, bool ice_config_loaded,
@@ -110,7 +100,8 @@ void RefreshSessionStatusView(SessionView& session_view,
 }
 
 void RefreshParticipantLevels(std::vector<ParticipantSummary>& participants,
-                              SessionView& session_view, int tick_index,
+                              SessionView& session_view,
+                              const tempolink::client::ClientSession& session,
                               const tempolink::client::ClientSession::Stats& stats,
                               bool signaling_connected,
                               const std::unordered_map<std::string, int>& peer_latency_ms,
@@ -127,16 +118,17 @@ void RefreshParticipantLevels(std::vector<ParticipantSummary>& participants,
   for (std::size_t i = 0; i < participants.size(); ++i) {
     auto& participant = participants[i];
     if (participant.is_self) {
+      const float self_input_level = session.InputLevel();
       participant.level = participant.is_muted
-                              ? tempolink::juceapp::style::kMutedParticipantLevel
-                              : AnimatedLevel(tick_index, 0);
+                              ? std::clamp(self_input_level * 0.35F, 0.0F, 1.0F)
+                              : self_input_level;
       participant.latency_ms = static_cast<int>(stats.last_rtt_ms);
       participant.packet_loss_percent = 0.0F;
       participant.connection_state = room_connection_state;
       continue;
     }
 
-    participant.level = AnimatedLevel(tick_index, static_cast<int>(i) * 31);
+    participant.level = session.PeerLevel(HashToU32(participant.user_id));
     const auto latency_it = peer_latency_ms.find(participant.user_id);
     participant.latency_ms =
         latency_it == peer_latency_ms.end() ? -1 : latency_it->second;
