@@ -2,7 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-#include "tempolink/juce/ui/UiModels.h"
+#include "tempolink/juce/ui/models/UiModels.h"
 
 class ConnectionBadge final : public juce::Component {
  public:

@@ -2,7 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-#include "tempolink/juce/ui/UiModels.h"
+#include "tempolink/juce/ui/models/UiModels.h"
 
 namespace tempolink::juceapp::style {
 
@@ -20,7 +20,7 @@ inline constexpr int kLobbyPadding = 16;
 inline constexpr int kLobbyHeaderHeight = 40;
 inline constexpr int kLobbySearchWidth = 220;
 inline constexpr int kLobbyGridPadding = 12;
-inline constexpr int kLobbyCardHeight = 150;
+inline constexpr int kLobbyCardHeight = 176;
 
 inline constexpr int kSessionPadding = 14;
 inline constexpr int kSessionLeftPanelWidth = 300;

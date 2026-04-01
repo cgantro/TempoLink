@@ -31,6 +31,18 @@ MyInputPanel::MyInputPanel() {
   body_.addAndMakeVisible(mute_toggle_);
   body_.addAndMakeVisible(metronome_toggle_);
   body_.addAndMakeVisible(audio_settings_button_);
+  mute_toggle_.setColour(juce::TextButton::textColourOffId,
+                         tempolink::juceapp::style::TextPrimary());
+  mute_toggle_.setColour(juce::TextButton::textColourOnId,
+                         tempolink::juceapp::style::TextPrimary());
+  metronome_toggle_.setColour(juce::TextButton::textColourOffId,
+                              tempolink::juceapp::style::TextPrimary());
+  metronome_toggle_.setColour(juce::TextButton::textColourOnId,
+                              tempolink::juceapp::style::TextPrimary());
+  audio_settings_button_.setColour(juce::TextButton::buttonColourId,
+                                   tempolink::juceapp::style::CardBackground());
+  audio_settings_button_.setColour(juce::TextButton::textColourOffId,
+                                   tempolink::juceapp::style::TextPrimary());
 
   mute_toggle_.onClick = [this] {
     if (!suppress_callbacks_ && on_mute_changed_) {

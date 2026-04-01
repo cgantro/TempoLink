@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "tempolink/juce/ui/UiModels.h"
+#include "tempolink/juce/ui/models/UiModels.h"
 
 class ParticipantRosterBuilder {
  public:
