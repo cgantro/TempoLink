@@ -10,15 +10,12 @@ constexpr int kCreateDialogHeight = 240;
 }  // namespace
 
 MyRoomsView::MyRoomsView() {
+  
   title_label_.setText("MY ROOMS", juce::dontSendNotification);
   title_label_.setFont(juce::FontOptions(24.0F).withStyle("Bold"));
-  title_label_.setColour(juce::Label::textColourId,
-                         tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(title_label_);
 
   status_label_.setText("Create and manage your rooms.", juce::dontSendNotification);
-  status_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextSecondary());
   addAndMakeVisible(status_label_);
 
   back_button_.onClick = [this] {
@@ -76,6 +73,22 @@ MyRoomsView::MyRoomsView() {
   cards_viewport_.setViewedComponent(&cards_container_, false);
   cards_viewport_.setScrollBarsShown(true, false);
   addAndMakeVisible(cards_viewport_);
+
+  updateTheme();
+}
+void MyRoomsView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+  update_btn(refresh_button_);
+  update_btn(create_button_);
+
+  repaint();
 }
 
 void MyRoomsView::setRooms(const std::vector<RoomSummary>& rooms) {

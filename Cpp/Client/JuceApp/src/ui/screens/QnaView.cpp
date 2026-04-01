@@ -25,25 +25,31 @@ QnaView::QnaView() {
                          tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(title_label_);
 
-  status_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextSecondary());
-  addAndMakeVisible(status_label_);
-
   doc_text_.setMultiLine(true);
   doc_text_.setReadOnly(true);
   doc_text_.setScrollbarsShown(true);
   doc_text_.setCaretVisible(false);
-  doc_text_.setColour(juce::TextEditor::textColourId,
-                      tempolink::juceapp::style::TextPrimary());
-  doc_text_.setColour(juce::TextEditor::highlightColourId,
-                      tempolink::juceapp::style::BorderStrong().withAlpha(0.35F));
-  doc_text_.setColour(juce::TextEditor::highlightedTextColourId,
-                      tempolink::juceapp::style::TextPrimary());
-  doc_text_.setColour(juce::TextEditor::backgroundColourId,
-                      tempolink::juceapp::style::PanelBackground());
-  doc_text_.setColour(juce::TextEditor::outlineColourId,
-                      tempolink::juceapp::style::BorderStrong());
   addAndMakeVisible(doc_text_);
+
+  updateTheme();
+}
+
+void QnaView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+  update_btn(reload_button_);
+
+  doc_text_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  doc_text_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  doc_text_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  repaint();
 }
 
 void QnaView::setOnBack(std::function<void()> on_back) {

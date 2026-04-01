@@ -56,13 +56,32 @@ UsersView::UsersView() {
   users_text_.setReadOnly(true);
   users_text_.setScrollbarsShown(true);
   users_text_.setCaretVisible(false);
-  users_text_.setColour(juce::TextEditor::textColourId,
-                        tempolink::juceapp::style::TextPrimary());
-  users_text_.setColour(juce::TextEditor::backgroundColourId,
-                        tempolink::juceapp::style::PanelBackground());
-  users_text_.setColour(juce::TextEditor::outlineColourId,
-                        tempolink::juceapp::style::BorderStrong());
   addAndMakeVisible(users_text_);
+
+  updateTheme();
+}
+
+void UsersView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PanelBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(back_button_);
+  update_btn(refresh_button_);
+
+  search_editor_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  search_editor_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  search_editor_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+  search_editor_.setTextToShowWhenEmpty("search users", tempolink::juceapp::style::TextSecondary());
+
+  users_text_.setColour(juce::TextEditor::textColourId, tempolink::juceapp::style::TextPrimary());
+  users_text_.setColour(juce::TextEditor::backgroundColourId, tempolink::juceapp::style::PanelBackground());
+  users_text_.setColour(juce::TextEditor::outlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  repaint();
 }
 
 void UsersView::setOnBack(std::function<void()> on_back) {

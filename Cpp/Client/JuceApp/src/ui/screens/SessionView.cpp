@@ -78,6 +78,16 @@ SessionView::SessionView() {
       on_disconnect_();
     }
   });
+  
+  updateTheme();
+}
+void SessionView::updateTheme() {
+  participant_list_card_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  
+  // Note: child panels (TopStatusBar, etc) are their own listeners and handle themselves.
+  // But we can force them to update if needed, though they already do via the global manager.
+  
+  repaint();
 }
 
 void SessionView::setRoomTitle(const juce::String& title) {

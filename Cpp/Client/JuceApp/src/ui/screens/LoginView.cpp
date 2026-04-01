@@ -9,22 +9,16 @@ LoginView::LoginView() {
   title_label_.setText("TempoLink", juce::dontSendNotification);
   title_label_.setFont(juce::FontOptions(40.0F).withStyle("Bold"));
   title_label_.setJustificationType(juce::Justification::centred);
-  title_label_.setColour(juce::Label::textColourId,
-                         tempolink::juceapp::style::TextPrimary());
   addAndMakeVisible(title_label_);
 
   subtitle_label_.setText("Sign in to enter online jam rooms", juce::dontSendNotification);
   subtitle_label_.setFont(juce::FontOptions(16.0F));
   subtitle_label_.setJustificationType(juce::Justification::centred);
-  subtitle_label_.setColour(juce::Label::textColourId,
-                            tempolink::juceapp::style::TextSecondary());
   addAndMakeVisible(subtitle_label_);
 
   status_label_.setText("Loading OAuth providers...", juce::dontSendNotification);
   status_label_.setFont(juce::FontOptions(14.0F));
   status_label_.setJustificationType(juce::Justification::centred);
-  status_label_.setColour(juce::Label::textColourId,
-                          tempolink::juceapp::style::TextSecondary());
   addAndMakeVisible(status_label_);
 
   google_login_button_.onClick = [this] {
@@ -40,6 +34,21 @@ LoginView::LoginView() {
     }
   };
   addAndMakeVisible(refresh_button_);
+  
+  updateTheme();
+}
+void LoginView::updateTheme() {
+  title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  subtitle_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  
+  google_login_button_.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::PrimaryBlue());
+  google_login_button_.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextInverted());
+  
+  refresh_button_.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::CardBackground());
+  refresh_button_.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  
+  repaint();
 }
 
 void LoginView::setOnLoginRequested(
