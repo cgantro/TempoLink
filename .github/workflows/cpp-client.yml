@@ -55,19 +55,29 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla/sccache-action@v0.0.5
 
+      - name: Configure sccache disk cache
+        run: |
+          mkdir -p .sccache
+          echo "SCCACHE_DIR=$(pwd)/.sccache" >> $GITHUB_ENV
+          echo "SCCACHE_GHA_ENABLED=false" >> $GITHUB_ENV
+
+      - name: Cache sccache
+        uses: actions/cache@v4
+        with:
+          path: .sccache
+          key: sccache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ runner.os }}-
+
       - name: Configure CMake
         run: |
           cmake --preset juce-client-debug \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache
         shell: bash
-        env:
-          SCCACHE_GHA_ENABLED: "true"
 
       - name: Build C++ Client
         run: cmake --build --preset juce-client-debug --parallel
-        env:
-          SCCACHE_GHA_ENABLED: "true"
 
       - name: Create .env.deploy
         run: |

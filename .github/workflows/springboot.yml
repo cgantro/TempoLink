@@ -22,6 +22,7 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         working-directory: SpringBoot/ControlPlaneService
@@ -39,7 +40,7 @@ jobs:
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -79,4 +80,9 @@ jobs:
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.server
 
             # --env-file 옵션으로 환경변수 주입하여 컨테이너 실행
-            docker run -d -p 8080:8080 --name tempolink-server -v /home/${{ secrets.SERVER_USER }}/downloads:/app/downloads --env-file .env.server ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest
+            # Nginx 연동을 위해 SERVER_FORWARD-HEADERS-STRATEGY=native 추가
+            docker run -d -p 8080:8080 --name tempolink-server \
+              -v /home/${{ secrets.SERVER_USER }}/downloads:/app/downloads \
+              --env-file .env.server \
+              -e SERVER_FORWARD-HEADERS-STRATEGY=native \
+              ${{ secrets.DOCKER_USERNAME }}/tempolink-server:latest
