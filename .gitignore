@@ -10,3 +10,7 @@ SpringBoot/ControlPlaneService/bin/
 SpringBoot/ControlPlaneService/.gradle/
 
 .env
+.env.client
+.env.server
+!.env.client.example
+!.env.server.example
