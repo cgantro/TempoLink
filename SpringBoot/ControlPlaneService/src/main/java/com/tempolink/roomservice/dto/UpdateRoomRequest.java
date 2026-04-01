@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 
-public record CreateRoomRequest(
+public record UpdateRoomRequest(
     @NotBlank String hostUserId,
     String name,
     String description,
@@ -14,8 +14,7 @@ public record CreateRoomRequest(
     Boolean isPublic,
     Boolean hasPassword,
     String password,
-    @Min(2) @Max(6) Integer maxParticipants,
-    String relayHost,
-    Integer relayPort
+    @Min(2) @Max(6) Integer maxParticipants
 ) {
 }
+

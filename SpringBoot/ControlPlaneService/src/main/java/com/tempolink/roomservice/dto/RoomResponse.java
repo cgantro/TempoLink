@@ -6,6 +6,11 @@ import java.util.List;
 public record RoomResponse(
     String roomCode,
     String hostUserId,
+    String name,
+    String description,
+    List<String> tags,
+    boolean isPublic,
+    boolean hasPassword,
     int maxParticipants,
     int participantCount,
     List<String> participants,
@@ -14,4 +19,3 @@ public record RoomResponse(
     Instant createdAt
 ) {
 }
-

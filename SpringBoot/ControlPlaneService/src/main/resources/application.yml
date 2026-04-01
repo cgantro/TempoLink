@@ -1,9 +1,44 @@
 spring:
+  config:
+    import:
+      - optional:file:.env.server[.properties]
+      - optional:file:../.env.server[.properties]
+      - optional:file:../../.env.server[.properties]
+  devtools:
+    restart:
+      enabled: false
   application:
     name: control-plane-service
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID:}}
+            client-secret: ${GOOGLE_CLIENT_SECRET:${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET:}}
+            scope:
+              - openid
+              - profile
+              - email
+  datasource:
+    url: jdbc:h2:mem:tempolink;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 management:
   endpoints:
@@ -11,7 +46,22 @@ management:
       exposure:
         include: health,info
 
+logging:
+  level:
+    com.tempolink: DEBUG
+
 tempolink:
+  relay:
+    host: ${TEMPOLINK_RELAY_HOST:127.0.0.1}
+    port: ${TEMPOLINK_RELAY_PORT:40000}
+  auth:
+    default-success-redirect: ${TEMPOLINK_AUTH_SUCCESS_REDIRECT:http://127.0.0.1:8080/api/auth/social/result}
+    ticket-ttl-seconds: ${TEMPOLINK_AUTH_TICKET_TTL:300}
+    session-ttl-seconds: ${TEMPOLINK_AUTH_SESSION_TTL:86400}
+    allowed-redirect-prefixes:
+      - "tempolink://auth/callback"
+      - "http://127.0.0.1"
+      - "http://localhost"
   network:
     stun-urls:
       - "stun:stun.l.google.com:19302"
