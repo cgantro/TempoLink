@@ -21,6 +21,8 @@ struct ClientEnvConfig {
   std::uint16_t bridge_client_listen_port = 0;
   std::uint16_t bridge_plugin_listen_port = 0;
 
+  static void SetEnvironment(const std::string& env);
+  static std::string GetEnvironment();
   static ClientEnvConfig Load();
 };
 

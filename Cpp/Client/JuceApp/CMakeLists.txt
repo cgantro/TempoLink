@@ -117,6 +117,7 @@ target_sources(
     include/tempolink/juce/network/http/user/UsersApiClient.h
     include/tempolink/juce/network/http/user/ProfileApiClient.h
     include/tempolink/juce/style/UiStyle.h
+    include/tempolink/juce/style/TempoLinkLookAndFeel.h
     include/tempolink/juce/ui/screens/LobbyView.h
     include/tempolink/juce/ui/screens/LoginView.h
     include/tempolink/juce/ui/screens/ManualView.h
@@ -133,6 +134,7 @@ target_sources(
     include/tempolink/juce/ui/screens/UsersView.h
     include/tempolink/juce/ui/common/ConnectionBadge.h
     include/tempolink/juce/ui/common/MetricLabel.h
+    include/tempolink/juce/ui/common/LevelMeterComponent.h
     include/tempolink/juce/ui/common/PanelCard.h
     include/tempolink/juce/ui/session/MainOutPanel.h
     include/tempolink/juce/ui/session/MyInputPanel.h
@@ -157,6 +159,8 @@ target_sources(
     src/app/SessionBindings.cpp
     src/app/SessionModelSupport.cpp
     src/config/ClientEnvConfig.cpp
+    src/style/ThemeManager.cpp
+    src/style/TempoLinkLookAndFeel.cpp
     src/bridge/UdpAudioBridgePort.cpp
     src/logging/AppLogger.cpp
     src/network/auth/AuthApiClient.cpp
@@ -189,6 +193,7 @@ target_sources(
     src/ui/screens/UsersView.cpp
     src/ui/common/ConnectionBadge.cpp
     src/ui/common/MetricLabel.cpp
+    src/ui/common/LevelMeterComponent.cpp
     src/ui/common/PanelCard.cpp
     src/ui/session/MainOutPanel.cpp
     src/ui/session/MyInputPanel.cpp

@@ -3,12 +3,14 @@
 #include <functional>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
 #include "tempolink/juce/ui/common/PanelCard.h"
 
-class MainOutPanel final : public juce::Component {
+class MainOutPanel final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   MainOutPanel();
+  void updateTheme() override;
 
   void setMasterVolume(float volume);
   void setRecording(bool recording);

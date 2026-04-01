@@ -4,14 +4,17 @@
 #include <string>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
 #include "tempolink/juce/ui/common/ConnectionBadge.h"
 #include "tempolink/juce/ui/common/MetricLabel.h"
+#include "tempolink/juce/ui/common/LevelMeterComponent.h"
 #include "tempolink/juce/ui/models/UiModels.h"
 
-class ParticipantStripComponent final : public juce::Component {
+class ParticipantStripComponent final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   ParticipantStripComponent();
+  void updateTheme() override;
 
   void setParticipant(const ParticipantSummary& participant);
   void setRuntimeMetrics(float level, int latency_ms, float packet_loss_percent,
@@ -40,7 +43,7 @@ class ParticipantStripComponent final : public juce::Component {
   juce::Label name_label_;
   juce::Label part_label_;
   juce::Label state_label_;
-  juce::Slider level_slider_;
+  tempolink::juceapp::ui::common::LevelMeterComponent level_meter_;
   juce::Slider monitor_volume_slider_;
   juce::Slider monitor_pan_slider_;
   juce::Label monitor_volume_label_;
@@ -51,4 +54,6 @@ class ParticipantStripComponent final : public juce::Component {
   MetricLabel loss_metric_;
   ConnectionBadge connection_badge_;
   bool suppress_monitor_callbacks_ = false;
+
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ParticipantStripComponent)
 };

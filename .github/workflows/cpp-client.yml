@@ -19,7 +19,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure CMake
         run: cmake --preset juce-client-debug
@@ -47,7 +47,7 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DSourceExe=$ExePath" "/DSourceEnv=$PWD\.env.deploy" "Cpp\Client\Installer\TempoLink.iss"
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-client-binary
           path: "Output/TempoLink-Installer.exe"
@@ -60,7 +60,7 @@ jobs:
       contents: write # GitHub Release 생성을 위한 권한 부여
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: windows-client-binary
           path: release-artifacts/

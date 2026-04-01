@@ -3,13 +3,15 @@
 #include <functional>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
 #include "tempolink/juce/ui/common/PanelCard.h"
 #include "tempolink/juce/ui/common/ConnectionBadge.h"
 
-class TopStatusBar final : public juce::Component {
+class TopStatusBar final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   TopStatusBar();
+  void updateTheme() override;
 
   void setRoomTitle(const juce::String& title);
   void setStatusText(const juce::String& status);

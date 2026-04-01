@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
-
+#include "tempolink/juce/style/ThemeableComponent.h"
 #include "tempolink/juce/ui/components/RoomCardComponent.h"
 
 struct LobbyRoomFilter {
@@ -18,7 +18,7 @@ struct LobbyRoomFilter {
   std::string mode = "all";
 };
 
-class LobbyView final : public juce::Component {
+class LobbyView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   enum class NavigationTarget {
     Rooms,
@@ -31,6 +31,7 @@ class LobbyView final : public juce::Component {
   };
 
   LobbyView();
+  void updateTheme() override;
 
   void setRooms(const std::vector<RoomSummary>& rooms);
   void setLogoImage(const juce::Image& logo_image);
@@ -76,4 +77,6 @@ class LobbyView final : public juce::Component {
   juce::TextButton room_action_fab_{"+"};
   juce::Viewport cards_viewport_;
   juce::Component cards_container_;
+
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LobbyView)
 };

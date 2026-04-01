@@ -4,10 +4,11 @@
 #include <string>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
 #include "tempolink/juce/ui/models/UiModels.h"
 
-class RoomCardComponent final : public juce::Component {
+class RoomCardComponent final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   enum class CardMode {
     Lobby,
@@ -15,6 +16,7 @@ class RoomCardComponent final : public juce::Component {
   };
 
   RoomCardComponent();
+  void updateTheme() override;
 
   void setRoom(const RoomSummary& room);
   void setMode(CardMode mode);
@@ -48,4 +50,6 @@ class RoomCardComponent final : public juce::Component {
   juce::TextButton edit_button_{"Edit"};
   juce::TextButton delete_button_{"Delete"};
   juce::TextButton share_button_{"Share"};
+
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RoomCardComponent)
 };

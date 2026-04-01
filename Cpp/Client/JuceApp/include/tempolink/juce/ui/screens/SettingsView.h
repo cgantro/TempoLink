@@ -5,10 +5,12 @@
 #include <vector>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
-class SettingsView final : public juce::Component {
+class SettingsView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   SettingsView();
+  void updateTheme() override;
 
   void setOnBack(std::function<void()> on_back);
   void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed);
@@ -48,6 +50,7 @@ class SettingsView final : public juce::Component {
   juce::Label buffer_label_{"", "Buffer"};
   juce::Label nickname_label_{"", "Nickname"};
   juce::Label bio_label_{"", "Bio"};
+  juce::Label theme_label_{"", "UI Theme"};
 
   juce::ComboBox input_combo_;
   juce::ComboBox output_combo_;
@@ -58,5 +61,6 @@ class SettingsView final : public juce::Component {
   juce::TextButton test_output_button_{"Test Output"};
   juce::TextEditor nickname_editor_;
   juce::TextEditor bio_editor_;
+  juce::ComboBox theme_combo_;
   juce::TextButton save_profile_button_{"Save Profile"};
 };

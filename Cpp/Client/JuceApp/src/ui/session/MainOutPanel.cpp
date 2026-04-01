@@ -11,35 +11,18 @@ MainOutPanel::MainOutPanel() {
   card_.setContent(body_);
 
   master_label_.setText("Master Volume", juce::dontSendNotification);
-  master_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
   master_label_.setFont(juce::FontOptions(13.0F).withStyle("Bold"));
   body_.addAndMakeVisible(master_label_);
 
   master_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
   master_slider_.setRange(0.0, 1.0, 0.01);
   master_slider_.setValue(1.0);
-  master_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 28);
+  master_slider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 24);
   master_slider_.setNumDecimalPlacesToDisplay(2);
-  master_slider_.setColour(juce::Slider::textBoxTextColourId,
-                           tempolink::juceapp::style::TextPrimary());
-  master_slider_.setColour(juce::Slider::textBoxBackgroundColourId,
-                           tempolink::juceapp::style::CardBackground());
-  master_slider_.setColour(juce::Slider::textBoxOutlineColourId,
-                           tempolink::juceapp::style::BorderStrong());
   body_.addAndMakeVisible(master_slider_);
 
-  audio_file_button_.setColour(juce::TextButton::buttonColourId,
-                               tempolink::juceapp::style::CardBackground());
-  audio_file_button_.setColour(juce::TextButton::textColourOffId,
-                               tempolink::juceapp::style::TextPrimary());
   body_.addAndMakeVisible(audio_file_button_);
-
-  record_button_.setColour(juce::TextButton::buttonColourId,
-                           tempolink::juceapp::style::CardBackground());
-  record_button_.setColour(juce::TextButton::textColourOffId,
-                           tempolink::juceapp::style::TextPrimary());
   body_.addAndMakeVisible(record_button_);
-
   body_.addAndMakeVisible(disconnect_button_);
 
   master_slider_.onValueChange = [this] {
@@ -67,6 +50,26 @@ MainOutPanel::MainOutPanel() {
       on_disconnect_();
     }
   };
+  
+  updateTheme();
+}
+
+void MainOutPanel::updateTheme() {
+  master_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+
+  master_slider_.setColour(juce::Slider::textBoxTextColourId, tempolink::juceapp::style::TextPrimary());
+  master_slider_.setColour(juce::Slider::textBoxBackgroundColourId, tempolink::juceapp::style::CardBackground());
+  master_slider_.setColour(juce::Slider::textBoxOutlineColourId, tempolink::juceapp::style::BorderStrong());
+
+  auto update_btn = [](juce::TextButton& btn) {
+    btn.setColour(juce::TextButton::buttonColourId, tempolink::juceapp::style::CardBackground());
+    btn.setColour(juce::TextButton::textColourOffId, tempolink::juceapp::style::TextPrimary());
+  };
+  update_btn(audio_file_button_);
+  update_btn(record_button_);
+  update_btn(disconnect_button_);
+
+  repaint();
 }
 
 void MainOutPanel::setMasterVolume(float volume) {

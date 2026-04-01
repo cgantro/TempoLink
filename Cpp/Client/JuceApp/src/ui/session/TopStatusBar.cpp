@@ -10,14 +10,12 @@ TopStatusBar::TopStatusBar() {
   card_.setContent(body_);
 
   room_title_label_.setFont(juce::FontOptions(22.0F).withStyle("Bold"));
-  room_title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
   room_title_label_.setText("Jam Session", juce::dontSendNotification);
   body_.addAndMakeVisible(room_title_label_);
 
   connection_badge_.setState(ConnectionBadgeState::Unknown);
   body_.addAndMakeVisible(connection_badge_);
 
-  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
   body_.addAndMakeVisible(status_label_);
 
   back_button_.onClick = [this] {
@@ -26,6 +24,14 @@ TopStatusBar::TopStatusBar() {
     }
   };
   body_.addAndMakeVisible(back_button_);
+  
+  updateTheme();
+}
+
+void TopStatusBar::updateTheme() {
+  room_title_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  status_label_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextSecondary());
+  repaint();
 }
 
 void TopStatusBar::setRoomTitle(const juce::String& title) {

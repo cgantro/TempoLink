@@ -4,10 +4,12 @@
 #include <string>
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "tempolink/juce/style/ThemeableComponent.h"
 
-class ProfileView final : public juce::Component {
+class ProfileView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
   ProfileView();
+  void updateTheme() override;
 
   void setOnBack(std::function<void()> on_back);
   void setProfile(const std::string& display_name, const std::string& bio);
