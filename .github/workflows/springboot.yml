@@ -5,10 +5,12 @@ on:
     branches: ["dev", "main"]
     paths:
       - "SpringBoot/**"
+      - ".github/workflows/**"
   pull_request:
     branches: ["dev", "main"]
     paths:
       - "SpringBoot/**"
+      - ".github/workflows/**"
 
 jobs:
   build:
