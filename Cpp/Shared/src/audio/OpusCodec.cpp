@@ -63,6 +63,12 @@ std::vector<std::byte> OpusCodec::Encode(std::span<const std::int16_t> pcm) {
     return {};
   }
 
+  const std::size_t required_samples =
+      static_cast<std::size_t>(frame_size_) * static_cast<std::size_t>(channels_);
+  if (required_samples == 0 || pcm.size() < required_samples) {
+    return {};
+  }
+
   std::vector<unsigned char> encoded(4000);
   const int result =
       opus_encode(encoder_, pcm.data(), frame_size_, encoded.data(),

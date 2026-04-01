@@ -1,6 +1,7 @@
 add_library(tempolink_common STATIC)
 
 set(TEMPOLINK_COMMON_SOURCES
+  src/bridge/UdpBridgeProtocol.cpp
   src/audio/AudioCodecFactory.cpp
   src/audio/NullAudioCodec.cpp
   src/audio/OpusCodec.cpp

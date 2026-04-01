@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <memory>
 #include <span>
 #include <string>
@@ -11,6 +12,7 @@
 #include "tempolink/audio/IAudioCodec.h"
 #include "tempolink/audio/IAudioInputDevice.h"
 #include "tempolink/audio/IAudioOutputDevice.h"
+#include "tempolink/client/AudioBridgePort.h"
 
 namespace tempolink::client {
 
@@ -34,6 +36,10 @@ class AudioPipeline {
   bool SetOutputDevice(const std::string& device_id);
   std::string SelectedInputDevice() const;
   std::string SelectedOutputDevice() const;
+  bool ConfigureAudioFormat(std::uint32_t sample_rate_hz, std::uint16_t frame_samples);
+  std::uint32_t SampleRateHz() const;
+  std::uint16_t FrameSamples() const;
+  void SetAudioBridge(std::shared_ptr<AudioBridgePort> audio_bridge);
 
   void SetMetronomeEnabled(bool enabled);
   bool IsMetronomeEnabled() const;
@@ -54,7 +60,9 @@ class AudioPipeline {
   std::unique_ptr<tempolink::audio::IAudioOutputDevice> audio_output_;
   std::unique_ptr<tempolink::audio::IAudioCodec> audio_encoder_;
   std::unique_ptr<tempolink::audio::IAudioCodec> audio_decoder_;
+  std::shared_ptr<AudioBridgePort> audio_bridge_;
 
+  mutable std::mutex callback_mutex_;
   EncodedFrameCallback encoded_frame_callback_;
   std::atomic_bool running_{false};
   std::atomic_bool muted_{false};

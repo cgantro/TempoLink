@@ -15,4 +15,8 @@ std::unique_ptr<IAudioCodec> CreateDefaultAudioCodec() {
 #endif
 }
 
+std::unique_ptr<IAudioCodec> CreatePcmAudioCodec() {
+  return std::make_unique<NullAudioCodec>();
+}
+
 }  // namespace tempolink::audio

@@ -4,12 +4,13 @@
 #include <thread>
 
 #include "tempolink/client/ClientSession.h"
+#include "tempolink/config/NetworkConstants.h"
 
 int main() {
   tempolink::client::ClientSession::Config config;
-  config.server_host = "127.0.0.1";
-  config.server_port = 40000;
-  config.room_id = 1;
+  config.server_host = tempolink::config::kDefaultRelayHost;
+  config.server_port = tempolink::config::kDefaultRelayPort;
+  config.room_id = tempolink::config::kDefaultRoomId;
   config.participant_id = 9001;
   config.nickname = "console-client";
 

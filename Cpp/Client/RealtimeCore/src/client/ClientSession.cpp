@@ -1,6 +1,7 @@
 #include "tempolink/client/ClientSession.h"
 
 #include <chrono>
+#include <utility>
 
 namespace tempolink::client {
 namespace {
@@ -27,8 +28,8 @@ bool ClientSession::Start(const Config& config) {
   Stop();
   config_ = config;
   stats_ = {};
-  joined_ = false;
-  running_ = false;
+  joined_.store(false, std::memory_order_release);
+  running_.store(false, std::memory_order_release);
   last_ping_sent_ = std::chrono::steady_clock::time_point::min();
   last_clock_sync_sent_ = std::chrono::steady_clock::time_point::min();
   peer_jitter_buffers_.clear();
@@ -46,7 +47,8 @@ bool ClientSession::Start(const Config& config) {
 
   const bool audio_started = audio_pipeline_.Start(
       [this](std::span<const std::byte> encoded_frame) {
-        if (!running_ || !joined_) {
+        if (!running_.load(std::memory_order_acquire) ||
+            !joined_.load(std::memory_order_acquire)) {
           return;
         }
         SendPacket(tempolink::net::PacketType::kAudio, encoded_frame);
@@ -56,21 +58,21 @@ bool ClientSession::Start(const Config& config) {
     return false;
   }
 
-  running_ = true;
+  running_.store(true, std::memory_order_release);
   return true;
 }
 
 void ClientSession::Stop() {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return;
   }
 
-  if (joined_) {
+  if (joined_.load(std::memory_order_acquire)) {
     SendPacket(tempolink::net::PacketType::kLeave, std::span<const std::byte>{});
   }
 
-  joined_ = false;
-  running_ = false;
+  joined_.store(false, std::memory_order_release);
+  running_.store(false, std::memory_order_release);
   stats_.joined = false;
   stats_.connected = false;
   peer_jitter_buffers_.clear();
@@ -79,30 +81,31 @@ void ClientSession::Stop() {
 }
 
 bool ClientSession::Join() {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
   const bool ok = SendPacket(tempolink::net::PacketType::kJoin, config_.nickname);
   if (ok) {
-    joined_ = true;
+    joined_.store(true, std::memory_order_release);
     stats_.joined = true;
   }
   return ok;
 }
 
 bool ClientSession::Leave() {
-  if (!running_ || !joined_) {
+  if (!running_.load(std::memory_order_acquire) ||
+      !joined_.load(std::memory_order_acquire)) {
     return false;
   }
   const bool ok =
       SendPacket(tempolink::net::PacketType::kLeave, std::span<const std::byte>{});
-  joined_ = false;
+  joined_.store(false, std::memory_order_release);
   stats_.joined = false;
   return ok;
 }
 
 bool ClientSession::SendPing() {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
   last_ping_sent_ = std::chrono::steady_clock::now();
@@ -110,7 +113,7 @@ bool ClientSession::SendPing() {
 }
 
 bool ClientSession::Tick() {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
 
@@ -212,6 +215,23 @@ std::string ClientSession::SelectedOutputDevice() const {
   return audio_pipeline_.SelectedOutputDevice();
 }
 
+bool ClientSession::ConfigureAudioFormat(std::uint32_t sample_rate_hz,
+                                         std::uint16_t frame_samples) {
+  return audio_pipeline_.ConfigureAudioFormat(sample_rate_hz, frame_samples);
+}
+
+std::uint32_t ClientSession::SampleRateHz() const {
+  return audio_pipeline_.SampleRateHz();
+}
+
+std::uint16_t ClientSession::FrameSamples() const {
+  return audio_pipeline_.FrameSamples();
+}
+
+void ClientSession::SetAudioBridge(std::shared_ptr<AudioBridgePort> audio_bridge) {
+  audio_pipeline_.SetAudioBridge(std::move(audio_bridge));
+}
+
 void ClientSession::SetMetronomeEnabled(bool enabled) {
   audio_pipeline_.SetMetronomeEnabled(enabled);
 }
@@ -238,7 +258,7 @@ const ClientSession::Config& ClientSession::GetConfig() const { return config_; 
 
 bool ClientSession::SendPacket(tempolink::net::PacketType type,
                                std::span<const std::byte> payload) {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
   return transport_.SendPacket(type, payload);
@@ -246,14 +266,14 @@ bool ClientSession::SendPacket(tempolink::net::PacketType type,
 
 bool ClientSession::SendPacket(tempolink::net::PacketType type,
                                const std::string& text_payload) {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
   return transport_.SendTextPacket(type, text_payload);
 }
 
 bool ClientSession::SendClockSync() {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
 

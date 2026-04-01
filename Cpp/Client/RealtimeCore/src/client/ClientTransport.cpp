@@ -20,7 +20,7 @@ std::uint64_t NowMicros() {
 bool ClientTransport::Start(const Endpoint& endpoint) {
   Stop();
   endpoint_ = endpoint;
-  sequence_ = 0;
+  sequence_.store(0, std::memory_order_relaxed);
 
   if (!socket_.Open()) {
     return false;
@@ -34,23 +34,24 @@ bool ClientTransport::Start(const Endpoint& endpoint) {
     return false;
   }
 
-  running_ = true;
+  running_.store(true, std::memory_order_release);
   return true;
 }
 
 void ClientTransport::Stop() {
-  if (!running_) {
+  if (!running_.exchange(false, std::memory_order_acq_rel)) {
     return;
   }
-  running_ = false;
   socket_.Close();
 }
 
-bool ClientTransport::IsRunning() const { return running_; }
+bool ClientTransport::IsRunning() const {
+  return running_.load(std::memory_order_acquire);
+}
 
 bool ClientTransport::SendPacket(tempolink::net::PacketType type,
                                  std::span<const std::byte> payload) {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
 
@@ -58,7 +59,7 @@ bool ClientTransport::SendPacket(tempolink::net::PacketType type,
   packet.header.type = type;
   packet.header.room_id = endpoint_.room_id;
   packet.header.sender_id = endpoint_.participant_id;
-  packet.header.sequence = ++sequence_;
+  packet.header.sequence = sequence_.fetch_add(1, std::memory_order_relaxed) + 1;
   packet.header.timestamp_us = NowMicros();
   packet.payload.assign(payload.begin(), payload.end());
 
@@ -77,7 +78,7 @@ bool ClientTransport::SendTextPacket(tempolink::net::PacketType type,
 }
 
 bool ClientTransport::PollPacket(tempolink::net::Packet& packet) {
-  if (!running_) {
+  if (!running_.load(std::memory_order_acquire)) {
     return false;
   }
 

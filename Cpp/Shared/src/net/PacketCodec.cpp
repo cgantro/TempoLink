@@ -1,5 +1,6 @@
 #include "tempolink/net/PacketCodec.h"
 
+#include <cassert>
 #include <cstring>
 
 namespace tempolink::net {
@@ -76,6 +77,9 @@ std::vector<std::byte> EncodePacket(const Packet& packet) {
   WriteU32(out + 36, header.payload_size);
 
   if (!packet.payload.empty()) {
+    assert(out != nullptr);
+    assert(packet.payload.data() != nullptr);
+    assert(packet.payload.size() <= encoded.size() - PacketHeader::kEncodedSize);
     std::memcpy(out + PacketHeader::kEncodedSize, packet.payload.data(),
                 packet.payload.size());
   }
@@ -116,6 +120,9 @@ std::optional<Packet> DecodePacket(std::span<const std::byte> bytes) {
 
   packet.payload.resize(packet.header.payload_size);
   if (packet.header.payload_size > 0) {
+    assert(packet.payload.data() != nullptr);
+    assert(in != nullptr);
+    assert(packet.header.payload_size <= bytes.size() - PacketHeader::kEncodedSize);
     std::memcpy(packet.payload.data(), in + PacketHeader::kEncodedSize,
                 packet.header.payload_size);
   }

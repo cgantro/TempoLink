@@ -15,9 +15,6 @@ TempoLink/
     Shared/
       include/
       src/
-    Server/
-      include/
-      src/
     Client/
       RealtimeCore/
         include/
@@ -51,18 +48,16 @@ TempoLink/
 
 1. `Cpp/Shared`:
    - 네트워크 패킷/UDP, 오디오 코덱 추상화, 플랫폼 오디오 인터페이스 같은 공통 코드만 둔다.
-2. `Cpp/Server`:
-   - 방 레지스트리, UDP 릴레이, 서버 런타임 진입점만 둔다.
-3. `Cpp/Client`:
+2. `Cpp/Client`:
    - `RealtimeCore`: 실시간 세션 코어 + 디버깅용 콘솔 클라이언트
    - `JuceApp`: 실제 데스크탑 앱(UI + 오디오 + UDP)
-4. `SpringBoot/ControlPlaneService`:
-   - 로그인/권한 이전 MVP 단계의 방 생성/입장/퇴장 + 릴레이 엔드포인트 제공 API
+3. `SpringBoot/ControlPlaneService`:
+   - 로그인/권한 이전 MVP 단계의 방 생성/입장/퇴장 API
 
 ## Build Management
 
 1. 루트 `CMakeLists.txt`는 C++ 서브트리 진입점(`add_subdirectory(Cpp)`)만 담당한다.
-2. `Cpp/CMakeLists.txt`에서 `Server`, `Client/RealtimeCore`, `Client/JuceApp` 빌드를 옵션으로 분리한다.
+2. `Cpp/CMakeLists.txt`에서 `Client/RealtimeCore`, `Client/JuceApp` 빌드를 옵션으로 분리한다.
 3. Spring Boot는 `SpringBoot/ControlPlaneService` 내부에서 독립적으로 `Gradle`로 빌드한다.
 4. 루트 `CMakePresets.json`으로 Windows/Linux/macOS 프리셋을 공통 관리한다.
 
@@ -70,11 +65,10 @@ TempoLink/
 
 1. 새 폴더를 먼저 만들고(`Cpp`, `SpringBoot`, `Docs`, `Scripts`, `Assets`) 빈 상태로 커밋한다.
 2. 공통 코드(`Shared`)를 먼저 이동하고 include 경로를 고정한다.
-3. 서버 코드를 이동하고 서버 단독 빌드로 검증한다.
-4. 클라이언트 코드를 이동하고 Console 앱 단독 빌드로 검증한다.
-5. JUCE 앱 경로를 이동하고 별도 프리셋으로 검증한다.
-6. Spring Boot 코드를 이동하고 API 실행/헬스체크를 확인한다.
-7. 마지막에 README, 스크립트, CI 경로를 업데이트한다.
+3. 클라이언트 코드를 이동하고 Console 앱 단독 빌드로 검증한다.
+4. JUCE 앱 경로를 이동하고 별도 프리셋으로 검증한다.
+5. Spring Boot 코드를 이동하고 API 실행/헬스체크를 확인한다.
+6. 마지막에 README, 스크립트, CI 경로를 업데이트한다.
 
 ## Notes
 

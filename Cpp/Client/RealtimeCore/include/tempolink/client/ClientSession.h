@@ -3,26 +3,29 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <atomic>
 #include <unordered_map>
 #include <span>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "tempolink/client/AudioPipeline.h"
 #include "tempolink/client/ClientTransport.h"
 #include "tempolink/client/ClockSyncTracker.h"
 #include "tempolink/client/PeerJitterBuffer.h"
+#include "tempolink/config/NetworkConstants.h"
 
 namespace tempolink::client {
 
 class ClientSession {
  public:
   struct Config {
-    std::string server_host = "127.0.0.1";
-    std::uint16_t server_port = 40000;
-    std::uint32_t room_id = 1;
-    std::uint32_t participant_id = 1001;
-    std::string nickname = "guest";
+    std::string server_host = tempolink::config::kDefaultRelayHost;
+    std::uint16_t server_port = tempolink::config::kDefaultRelayPort;
+    std::uint32_t room_id = tempolink::config::kDefaultRoomId;
+    std::uint32_t participant_id = tempolink::config::kDefaultParticipantId;
+    std::string nickname = tempolink::config::kDefaultNickname;
   };
 
   struct Stats {
@@ -54,6 +57,10 @@ class ClientSession {
   bool SetOutputDevice(const std::string& device_id);
   std::string SelectedInputDevice() const;
   std::string SelectedOutputDevice() const;
+  bool ConfigureAudioFormat(std::uint32_t sample_rate_hz, std::uint16_t frame_samples);
+  std::uint32_t SampleRateHz() const;
+  std::uint16_t FrameSamples() const;
+  void SetAudioBridge(std::shared_ptr<AudioBridgePort> audio_bridge);
 
   void SetMetronomeEnabled(bool enabled);
   bool IsMetronomeEnabled() const;
@@ -72,8 +79,8 @@ class ClientSession {
 
   Config config_;
   Stats stats_;
-  bool running_ = false;
-  bool joined_ = false;
+  std::atomic_bool running_{false};
+  std::atomic_bool joined_{false};
   std::chrono::steady_clock::time_point last_ping_sent_ =
       std::chrono::steady_clock::time_point::min();
   std::chrono::steady_clock::time_point last_clock_sync_sent_ =

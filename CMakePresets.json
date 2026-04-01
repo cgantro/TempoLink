@@ -46,20 +46,10 @@
       }
     },
     {
-      "name": "server-debug",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_SERVER": "ON",
-        "TEMPOLINK_BUILD_CLIENT": "OFF"
-      }
-    },
-    {
       "name": "client-debug",
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_SERVER": "OFF",
         "TEMPOLINK_BUILD_CLIENT": "ON"
       }
     },
@@ -68,7 +58,6 @@
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_SERVER": "ON",
         "TEMPOLINK_BUILD_CLIENT": "ON",
         "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF"
       }
@@ -78,7 +67,6 @@
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_SERVER": "ON",
         "TEMPOLINK_BUILD_CLIENT": "ON",
         "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF",
         "TEMPOLINK_ENABLE_BOOST": "ON",
@@ -90,32 +78,10 @@
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_SERVER": "OFF",
         "TEMPOLINK_BUILD_CLIENT": "OFF",
         "TEMPOLINK_BUILD_JUCE_CLIENT": "ON",
         "TEMPOLINK_FETCH_JUCE": "ON"
       }
-    },
-    {
-      "name": "server-debug-win",
-      "inherits": [
-        "base-win-ninja",
-        "server-debug"
-      ]
-    },
-    {
-      "name": "server-debug-linux",
-      "inherits": [
-        "base-linux-ninja",
-        "server-debug"
-      ]
-    },
-    {
-      "name": "server-debug-macos",
-      "inherits": [
-        "base-macos-ninja",
-        "server-debug"
-      ]
     },
     {
       "name": "client-debug-win",
@@ -141,10 +107,6 @@
   ],
   "buildPresets": [
     {
-      "name": "server-debug",
-      "configurePreset": "server-debug"
-    },
-    {
       "name": "client-debug",
       "configurePreset": "client-debug"
     },
@@ -159,18 +121,6 @@
     {
       "name": "juce-client-debug",
       "configurePreset": "juce-client-debug"
-    },
-    {
-      "name": "server-debug-win",
-      "configurePreset": "server-debug-win"
-    },
-    {
-      "name": "server-debug-linux",
-      "configurePreset": "server-debug-linux"
-    },
-    {
-      "name": "server-debug-macos",
-      "configurePreset": "server-debug-macos"
     },
     {
       "name": "client-debug-win",

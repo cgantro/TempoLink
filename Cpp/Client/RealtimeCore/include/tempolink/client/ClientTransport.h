@@ -2,22 +2,24 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <atomic>
 #include <mutex>
 #include <span>
 #include <string>
 
 #include "tempolink/net/Packet.h"
 #include "tempolink/net/UdpSocket.h"
+#include "tempolink/config/NetworkConstants.h"
 
 namespace tempolink::client {
 
 class ClientTransport {
  public:
   struct Endpoint {
-    std::string server_host = "127.0.0.1";
-    std::uint16_t server_port = 40000;
-    std::uint32_t room_id = 1;
-    std::uint32_t participant_id = 1001;
+    std::string server_host = tempolink::config::kDefaultRelayHost;
+    std::uint16_t server_port = tempolink::config::kDefaultRelayPort;
+    std::uint32_t room_id = tempolink::config::kDefaultRoomId;
+    std::uint32_t participant_id = tempolink::config::kDefaultParticipantId;
   };
 
   bool Start(const Endpoint& endpoint);
@@ -30,8 +32,8 @@ class ClientTransport {
 
  private:
   Endpoint endpoint_{};
-  std::uint32_t sequence_ = 0;
-  bool running_ = false;
+  std::atomic<std::uint32_t> sequence_{0};
+  std::atomic_bool running_{false};
   tempolink::net::UdpSocket socket_;
   std::mutex send_mutex_;
 };

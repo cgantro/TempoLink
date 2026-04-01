@@ -7,6 +7,7 @@
 #include "tempolink/audio/AudioCodecFactory.h"
 #include "tempolink/audio/AudioInputFactory.h"
 #include "tempolink/audio/AudioOutputFactory.h"
+#include "tempolink/config/AudioConstants.h"
 
 namespace tempolink::client {
 namespace {
@@ -26,6 +27,24 @@ std::int16_t ClampPcm(float sample) {
   constexpr float kMax = 32767.0F;
   const float clamped = std::clamp(sample, kMin, kMax);
   return static_cast<std::int16_t>(clamped);
+}
+
+bool InitializeCodecPair(
+    std::unique_ptr<tempolink::audio::IAudioCodec>& encoder,
+    std::unique_ptr<tempolink::audio::IAudioCodec>& decoder,
+    std::uint32_t sample_rate_hz, std::uint8_t channels, std::uint16_t frame_samples) {
+  if (encoder != nullptr && decoder != nullptr &&
+      encoder->Initialize(sample_rate_hz, channels, frame_samples) &&
+      decoder->Initialize(sample_rate_hz, channels, frame_samples)) {
+    return true;
+  }
+
+  // Fallback for high sample-rate interfaces where low-delay Opus init can fail.
+  encoder = tempolink::audio::CreatePcmAudioCodec();
+  decoder = tempolink::audio::CreatePcmAudioCodec();
+  return encoder != nullptr && decoder != nullptr &&
+         encoder->Initialize(sample_rate_hz, channels, frame_samples) &&
+         decoder->Initialize(sample_rate_hz, channels, frame_samples);
 }
 
 }  // namespace
@@ -55,16 +74,8 @@ bool AudioPipeline::Start(EncodedFrameCallback on_frame_encoded) {
     selected_output_device_ = audio_output_->SelectedDeviceId();
   }
 
-  if (!audio_encoder_->Initialize(capture_config_.sample_rate_hz,
-                                  capture_config_.channels,
-                                  capture_config_.frame_samples)) {
-    Stop();
-    return false;
-  }
-
-  if (!audio_decoder_->Initialize(playback_config_.sample_rate_hz,
-                                  playback_config_.channels,
-                                  playback_config_.frame_samples)) {
+  if (!InitializeCodecPair(audio_encoder_, audio_decoder_, capture_config_.sample_rate_hz,
+                           capture_config_.channels, capture_config_.frame_samples)) {
     Stop();
     return false;
   }
@@ -75,7 +86,10 @@ bool AudioPipeline::Start(EncodedFrameCallback on_frame_encoded) {
   }
   audio_output_->SetOutputVolume(volume_.load());
 
-  encoded_frame_callback_ = std::move(on_frame_encoded);
+  {
+    std::scoped_lock lock(callback_mutex_);
+    encoded_frame_callback_ = std::move(on_frame_encoded);
+  }
   running_ = true;
   metronome_phase_samples_ = 0;
   metronome_beat_index_ = 0;
@@ -100,7 +114,10 @@ void AudioPipeline::Stop() {
     audio_output_->Stop();
   }
 
-  encoded_frame_callback_ = nullptr;
+  {
+    std::scoped_lock lock(callback_mutex_);
+    encoded_frame_callback_ = nullptr;
+  }
   audio_input_.reset();
   audio_output_.reset();
   audio_encoder_.reset();
@@ -189,6 +206,61 @@ std::string AudioPipeline::SelectedOutputDevice() const {
   return selected_output_device_;
 }
 
+bool AudioPipeline::ConfigureAudioFormat(std::uint32_t sample_rate_hz,
+                                         std::uint16_t frame_samples) {
+  if (!tempolink::config::IsSupportedSampleRate(sample_rate_hz) ||
+      !tempolink::config::IsSupportedFrameSamples(frame_samples)) {
+    return false;
+  }
+
+  capture_config_.sample_rate_hz = sample_rate_hz;
+  playback_config_.sample_rate_hz = sample_rate_hz;
+  capture_config_.frame_samples = frame_samples;
+  playback_config_.frame_samples = frame_samples;
+
+  if (!running_.load()) {
+    return true;
+  }
+
+  if (!audio_input_ || !audio_output_ || !audio_encoder_ || !audio_decoder_) {
+    return false;
+  }
+
+  audio_input_->Stop();
+  audio_output_->Stop();
+
+  if (!InitializeCodecPair(audio_encoder_, audio_decoder_, capture_config_.sample_rate_hz,
+                           capture_config_.channels, capture_config_.frame_samples)) {
+    Stop();
+    return false;
+  }
+  if (!audio_output_->Start(playback_config_)) {
+    Stop();
+    return false;
+  }
+  audio_output_->SetOutputVolume(volume_.load());
+  if (!audio_input_->Start(
+          capture_config_, [this](std::span<const std::int16_t> pcm) {
+            OnCapturedFrame(pcm);
+          })) {
+    Stop();
+    return false;
+  }
+  return true;
+}
+
+std::uint32_t AudioPipeline::SampleRateHz() const {
+  return capture_config_.sample_rate_hz;
+}
+
+std::uint16_t AudioPipeline::FrameSamples() const {
+  return capture_config_.frame_samples;
+}
+
+void AudioPipeline::SetAudioBridge(std::shared_ptr<AudioBridgePort> audio_bridge) {
+  audio_bridge_ = std::move(audio_bridge);
+}
+
 void AudioPipeline::SetMetronomeEnabled(bool enabled) {
   metronome_enabled_.store(enabled);
 }
@@ -224,6 +296,13 @@ void AudioPipeline::HandleIncomingAudio(
   for (auto& sample : decoded) {
     sample = ClampPcm(static_cast<float>(sample) * gain);
   }
+
+  auto bridge = audio_bridge_;
+  if (bridge != nullptr) {
+    bridge->OnPlaybackOutput(
+        std::span<const std::int16_t>(decoded.data(), decoded.size()),
+        playback_config_);
+  }
   audio_output_->PlayFrame(decoded);
 }
 
@@ -232,14 +311,35 @@ void AudioPipeline::OnCapturedFrame(std::span<const std::int16_t> pcm) {
     return;
   }
 
-  std::vector<std::int16_t> mixed(pcm.begin(), pcm.end());
-  MixMetronomeClick(mixed);
-
-  auto encoded = audio_encoder_->Encode(mixed);
-  if (encoded.empty() || !encoded_frame_callback_) {
+  const std::size_t channels = std::max<std::size_t>(1, capture_config_.channels);
+  const std::size_t expected_samples =
+      static_cast<std::size_t>(capture_config_.frame_samples) * channels;
+  if (expected_samples == 0 || pcm.size() < expected_samples) {
     return;
   }
-  encoded_frame_callback_(encoded);
+
+  std::vector<std::int16_t> mixed(pcm.begin(), pcm.begin() + expected_samples);
+  MixMetronomeClick(mixed);
+
+  auto bridge = audio_bridge_;
+  if (bridge != nullptr) {
+    bridge->OnCapturedInput(std::span<std::int16_t>(mixed.data(), mixed.size()),
+                            capture_config_);
+  }
+
+  auto encoded = audio_encoder_->Encode(mixed);
+  if (encoded.empty()) {
+    return;
+  }
+  EncodedFrameCallback callback;
+  {
+    std::scoped_lock lock(callback_mutex_);
+    callback = encoded_frame_callback_;
+  }
+  if (!callback) {
+    return;
+  }
+  callback(encoded);
 }
 
 void AudioPipeline::MixMetronomeClick(std::vector<std::int16_t>& pcm) {
@@ -255,8 +355,12 @@ void AudioPipeline::MixMetronomeClick(std::vector<std::int16_t>& pcm) {
     return;
   }
 
-  const std::size_t channels = capture_config_.channels;
-  const std::size_t frame_samples = capture_config_.frame_samples;
+  const std::size_t channels = std::max<std::size_t>(1, capture_config_.channels);
+  const std::size_t frame_samples = pcm.size() / channels;
+  if (frame_samples == 0) {
+    return;
+  }
+
   const float metronome_gain = metronome_volume_.load();
   constexpr float kTwoPi = 6.28318530717958647692F;
 
@@ -280,6 +384,9 @@ void AudioPipeline::MixMetronomeClick(std::vector<std::int16_t>& pcm) {
             wave * envelope * accent_gain * metronome_gain * 15000.0F;
         for (std::size_t ch = 0; ch < channels; ++ch) {
           const std::size_t index = (sample_index + k) * channels + ch;
+          if (index >= pcm.size()) {
+            continue;
+          }
           pcm[index] =
               ClampPcm(static_cast<float>(pcm[index]) + static_cast<float>(mixed));
         }
