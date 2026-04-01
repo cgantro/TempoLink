@@ -52,11 +52,22 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Run sccache-cache
+        uses: mozilla/sccache-action@v0.0.5
+
       - name: Configure CMake
-        run: cmake --preset juce-client-debug
+        run: |
+          cmake --preset juce-client-debug \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache
+        shell: bash
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Build C++ Client
         run: cmake --build --preset juce-client-debug --parallel
+        env:
+          SCCACHE_GHA_ENABLED: "true"
 
       - name: Create .env.deploy
         run: |
@@ -76,8 +87,21 @@ jobs:
       - name: Package Windows (Inno Setup)
         if: runner.os == 'Windows'
         run: |
-          $ExePath = Get-ChildItem -Path "out/build/juce-client-debug" -Filter *tempolink_juce_client.exe -Recurse | Select-Object -First 1 -ExpandProperty FullName
-          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" "/DSourceExe=$ExePath" "/DSourceEnv=$PWD\.env.deploy" "Cpp\Client\Installer\TempoLink.iss"
+          # Use system environment variables instead of absolute strings
+          $ISCC = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          if (-not $ISCC) {
+            $ISCC = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe"
+          }
+          
+          # Use relative paths for discovery and execution
+          $ExePath = Get-ChildItem -Path "out/build" -Filter "tempolink_juce_client.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $ExePath) {
+            Write-Error "Could not find tempolink_juce_client.exe for packaging."
+            exit 1
+          }
+
+          & $ISCC "/DSourceExe=$ExePath" "/DSourceEnv=./.env.deploy" "Cpp/Client/Installer/TempoLink.iss"
+        shell: powershell
 
       - name: Package (CPack)
         if: runner.os != 'Windows'

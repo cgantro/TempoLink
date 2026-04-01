@@ -1,9 +1,9 @@
 #pragma once
 
-#include <atomic>
-#include <string>
-#include <thread>
 #include <vector>
+#include <memory>
+
+#include "tempolink/util/StandardThread.h"
 
 #include "tempolink/audio/IAudioInputDevice.h"
 
@@ -22,11 +22,11 @@ class CoreAudioInputDevice final : public IAudioInputDevice {
   std::string BackendName() const override;
 
  private:
-  void CaptureLoop(std::stop_token stop_token, AudioCaptureConfig config,
+  void CaptureLoop(util::StopToken stop_token, AudioCaptureConfig config,
                    AudioCaptureCallback callback);
 
   std::string selected_device_id_;
-  std::jthread capture_thread_;
+  util::StandardThread capture_thread_;
   std::atomic_bool running_{false};
 };
 
