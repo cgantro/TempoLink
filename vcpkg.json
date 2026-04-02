@@ -1,0 +1,12 @@
+{
+  "name": "tempolink",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "openssl",
+    {
+      "name": "cpp-httplib",
+      "features": ["openssl"]
+    },
+    "nlohmann-json"
+  ]
+}

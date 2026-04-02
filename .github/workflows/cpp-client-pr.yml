@@ -39,13 +39,27 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Enable vcpkg GitHub Actions Cache
-        uses: actions/github-script@v7
+      - name: Restore vcpkg Caches (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
         with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-            core.exportVariable('VCPKG_BINARY_SOURCES', 'clear;x-gha,readwrite');
+          path: |
+            ${{ github.workspace }}\vcpkg\downloads
+            ${{ github.workspace }}\vcpkg-binary-cache
+            ${{ github.workspace }}\vcpkg_installed
+          key: windows-vcpkg-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            windows-vcpkg-
+
+      - name: Bootstrap and Install vcpkg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-binary-cache
+        run: |
+          if (-not (Test-Path "${{ github.workspace }}\vcpkg")) { git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg" }
+          & "${{ github.workspace }}\vcpkg\bootstrap-vcpkg.bat"
+          & "${{ github.workspace }}\vcpkg\vcpkg.exe" install --triplet x64-windows
 
       - name: Cache JUCE deps
         uses: actions/cache@v4
@@ -123,7 +137,10 @@ jobs:
         run: |
           cmake --preset juce-client-debug `
             "-DCMAKE_C_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:SCCACHE_PATH"
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
+            "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            "-DVCPKG_TARGET_TRIPLET=x64-windows" `
+            "-DVCPKG_INSTALLED_DIR=${{ github.workspace }}\vcpkg_installed"
 
       - name: Configure CMake (macOS/Linux)
         if: runner.os != 'Windows'
