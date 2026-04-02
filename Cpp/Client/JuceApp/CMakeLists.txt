@@ -3,10 +3,6 @@ cmake_minimum_required(VERSION 3.24)
 option(TEMPOLINK_FETCH_JUCE "Download JUCE automatically when not found" ON)
 set(TEMPOLINK_JUCE_VERSION "8.0.7" CACHE STRING "JUCE version used when TEMPOLINK_FETCH_JUCE=ON")
 set(TEMPOLINK_JUCE_SOURCE_DIR "" CACHE PATH "Local JUCE source directory (contains CMakeLists.txt)")
-option(TEMPOLINK_FETCH_CPPHTTPLIB "Download cpp-httplib automatically when not found" ON)
-set(TEMPOLINK_CPPHTTPLIB_VERSION "v0.18.6" CACHE STRING "cpp-httplib version")
-option(TEMPOLINK_FETCH_NLOHMANN_JSON "Download nlohmann_json automatically when not found" ON)
-set(TEMPOLINK_NLOHMANN_JSON_VERSION "v3.11.3" CACHE STRING "nlohmann_json version")
 option(TEMPOLINK_BUILD_JUCE_VST3_BRIDGE "Build TempoLink JUCE VST3 bridge plugin" ON)
 
 find_package(JUCE CONFIG QUIET)
@@ -33,43 +29,8 @@ if(NOT TARGET juce::juce_core)
   endif()
 endif()
 
-find_package(httplib CONFIG QUIET)
-
-if(NOT TARGET httplib::httplib)
-  if(TEMPOLINK_FETCH_CPPHTTPLIB)
-    include(FetchContent)
-    FetchContent_Declare(
-      cpp_httplib
-      URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/${TEMPOLINK_CPPHTTPLIB_VERSION}.tar.gz
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(cpp_httplib)
-  else()
-    message(FATAL_ERROR
-      "cpp-httplib was not found.\n"
-      "Set httplib_DIR/CMAKE_PREFIX_PATH, or enable TEMPOLINK_FETCH_CPPHTTPLIB."
-    )
-  endif()
-endif()
-
-find_package(nlohmann_json CONFIG QUIET)
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-  if(TEMPOLINK_FETCH_NLOHMANN_JSON)
-    include(FetchContent)
-    FetchContent_Declare(
-      nlohmann_json
-      URL https://github.com/nlohmann/json/archive/refs/tags/${TEMPOLINK_NLOHMANN_JSON_VERSION}.tar.gz
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(nlohmann_json)
-  else()
-    message(FATAL_ERROR
-      "nlohmann_json was not found.\n"
-      "Set nlohmann_json_DIR/CMAKE_PREFIX_PATH, or enable TEMPOLINK_FETCH_NLOHMANN_JSON."
-    )
-  endif()
-endif()
+find_package(httplib CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 juce_add_gui_app(tempolink_juce_client PRODUCT_NAME "TempoLink JUCE Client")
 
