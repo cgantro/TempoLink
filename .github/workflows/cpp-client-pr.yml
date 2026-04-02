@@ -54,22 +54,34 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}/vcpkg-binary-cache
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
             ${{ github.workspace }}/vcpkg_installed
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             vcpkg-${{ runner.os }}-
 
-      - name: Bootstrap and Install vcpkg (Windows)
+      - name: Bootstrap vcpkg (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        env:
-          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-binary-cache
         run: |
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\vcpkg-binary-cache" | Out-Null
           if (-not (Test-Path "${{ github.workspace }}\vcpkg")) { git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg" }
           & "${{ github.workspace }}\vcpkg\bootstrap-vcpkg.bat"
-          & "${{ github.workspace }}\vcpkg\vcpkg.exe" install --triplet x64-windows
+
+      - name: Install vcpkg Dependencies
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            TRIPLET="x64-windows"
+            VCPKG_EXEC="${{ env.VCPKG_ROOT }}/vcpkg.exe"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            if [ "$(uname -m)" = "arm64" ]; then TRIPLET="arm64-osx"; else TRIPLET="x64-osx"; fi
+            VCPKG_EXEC="${{ env.VCPKG_ROOT }}/vcpkg"
+          else
+            TRIPLET="x64-linux"
+            VCPKG_EXEC="${{ env.VCPKG_ROOT }}/vcpkg"
+          fi
+          "$VCPKG_EXEC" install --triplet "$TRIPLET" --x-install-root="${{ github.workspace }}/vcpkg_installed"
 
       - name: Cache JUCE deps
         uses: actions/cache@v4
@@ -188,9 +200,10 @@ jobs:
           if (-not (Test-Path $ISCC)) { exit 1 }
 
           $StagingDir = "$PWD\staging-win"
+          $OutDir = "$PWD\installer-output"
           cmake --install out/build/juce-client-debug --prefix "$StagingDir" --config Debug
           Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
-          & $ISCC "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp/Client/Installer/TempoLink.iss"
+          & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
 
       - name: Package (CPack)
         if: runner.os != 'Windows'
