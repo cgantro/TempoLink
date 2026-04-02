@@ -22,7 +22,7 @@ class NullAudioOutputDevice final : public IAudioOutputDevice {
 
   void SetOutputVolume(float gain) override;
   float OutputVolume() const override;
-  void PlayFrame(std::span<const std::int16_t> pcm) override;
+  void PlayFrame(std::span<const float> pcm) override;
 
  private:
   std::vector<AudioDeviceInfo> devices_{

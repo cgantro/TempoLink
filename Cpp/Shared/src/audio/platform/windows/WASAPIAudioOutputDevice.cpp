@@ -120,7 +120,7 @@ float WASAPIAudioOutputDevice::OutputVolume() const {
   return output_volume_.load();
 }
 
-void WASAPIAudioOutputDevice::PlayFrame(std::span<const std::int16_t> pcm) {
+void WASAPIAudioOutputDevice::PlayFrame(std::span<const float> pcm) {
   if (!running_.load()) {
     return;
   }
@@ -162,10 +162,10 @@ void WASAPIAudioOutputDevice::RenderLoop(std::stop_token stop_token) {
   }
 
   WAVEFORMATEX fmt{};
-  fmt.wFormatTag = WAVE_FORMAT_PCM;
+  fmt.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
   fmt.nChannels = static_cast<WORD>(std::max<std::uint8_t>(1, config_.channels));
   fmt.nSamplesPerSec = std::max<std::uint32_t>(8000, config_.sample_rate_hz);
-  fmt.wBitsPerSample = 16;
+  fmt.wBitsPerSample = 32;
   fmt.nBlockAlign = static_cast<WORD>(fmt.nChannels * (fmt.wBitsPerSample / 8));
   fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
   fmt.cbSize = 0;
@@ -218,7 +218,7 @@ void WASAPIAudioOutputDevice::RenderLoop(std::stop_token stop_token) {
   if (SUCCEEDED(hr) && init_data != nullptr) {
     const std::size_t init_samples =
         static_cast<std::size_t>(buffer_frames) * static_cast<std::size_t>(fmt.nChannels);
-    std::fill_n(reinterpret_cast<std::int16_t*>(init_data), init_samples, 0);
+    std::fill_n(reinterpret_cast<float*>(init_data), init_samples, 0.0f);
     render_client->ReleaseBuffer(buffer_frames, 0);
   }
 
@@ -252,7 +252,7 @@ void WASAPIAudioOutputDevice::RenderLoop(std::stop_token stop_token) {
       continue;
     }
 
-    auto* out = reinterpret_cast<std::int16_t*>(buffer_data);
+    auto* out = reinterpret_cast<float*>(buffer_data);
     const std::size_t needed_samples =
         static_cast<std::size_t>(available_frames) * static_cast<std::size_t>(fmt.nChannels);
     const float gain = output_volume_.load();
@@ -261,15 +261,12 @@ void WASAPIAudioOutputDevice::RenderLoop(std::stop_token stop_token) {
     {
       std::scoped_lock lock(queue_mutex_);
       while (consumed < needed_samples && !pending_samples_.empty()) {
-        const float scaled =
-            static_cast<float>(pending_samples_.front()) * std::clamp(gain, 0.0F, 1.0F);
-        out[consumed++] =
-            static_cast<std::int16_t>(std::clamp(scaled, -32768.0F, 32767.0F));
+        out[consumed++] = pending_samples_.front() * std::clamp(gain, 0.0F, 1.0F);
         pending_samples_.pop_front();
       }
     }
     while (consumed < needed_samples) {
-      out[consumed++] = 0;
+      out[consumed++] = 0.0f;
     }
 
     render_client->ReleaseBuffer(available_frames, 0);

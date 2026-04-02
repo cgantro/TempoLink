@@ -14,6 +14,7 @@
 #include "tempolink/client/ClientTransport.h"
 #include "tempolink/client/ClockSyncTracker.h"
 #include "tempolink/client/PeerJitterBuffer.h"
+#include "tempolink/client/codec/OpusCodec.h"
 #include "tempolink/config/NetworkConstants.h"
 
 namespace tempolink::client {
@@ -101,6 +102,11 @@ class ClientSession {
   ClockSyncTracker clock_sync_tracker_;
   std::unordered_map<std::uint32_t, PeerJitterBuffer> peer_jitter_buffers_;
   std::unordered_map<std::uint32_t, float> peer_levels_;
+  
+#ifdef TEMPOLINK_USE_OPUS
+  std::unique_ptr<tempolink::client::codec::OpusAudioEncoder> encoder_;
+  std::unordered_map<std::uint32_t, std::unique_ptr<tempolink::client::codec::OpusAudioDecoder>> decoders_;
+#endif
 };
 
 }  // namespace tempolink::client

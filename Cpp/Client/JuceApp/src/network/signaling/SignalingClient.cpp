@@ -122,6 +122,27 @@ bool SignalingClient::sendPeerPong(const std::string& to_user_id,
   return sendEnvelope("peer.pong", to_user_id, sent_at_ms);
 }
 
+bool SignalingClient::sendChatMessage(const juce::String& text,
+                                      const std::string& to_user_id) {
+  if (!connected_.load()) {
+    return false;
+  }
+  nlohmann::json payload = nlohmann::json::object();
+  payload["message"] = text.toStdString();
+  payload["sentAtMs"] = juce::Time::currentTimeMillis();
+
+  nlohmann::json envelope = {
+      {"type", "chat.message"},
+      {"roomCode", room_code_},
+      {"fromUserId", user_id_},
+      {"toUserId", to_user_id},
+      {"payload", payload},
+  };
+  const std::string serialized = envelope.dump();
+  juce::MemoryBlock body(serialized.data(), serialized.size());
+  return sendFrame(0x1, body);
+}
+
 bool SignalingClient::performHandshake(const std::string& host, int port,
                                        const std::string& path_query) {
   pending_read_buffer_.reset();

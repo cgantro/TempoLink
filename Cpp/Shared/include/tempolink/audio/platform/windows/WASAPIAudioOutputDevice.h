@@ -24,7 +24,7 @@ class WASAPIAudioOutputDevice final : public IAudioOutputDevice {
 
   void SetOutputVolume(float gain) override;
   float OutputVolume() const override;
- void PlayFrame(std::span<const std::int16_t> pcm) override;
+  void PlayFrame(std::span<const float> pcm) override;
 
  private:
   void RenderLoop(std::stop_token stop_token);
@@ -35,7 +35,7 @@ class WASAPIAudioOutputDevice final : public IAudioOutputDevice {
   std::atomic<float> output_volume_{1.0F};
   std::jthread render_thread_;
   mutable std::mutex queue_mutex_;
-  std::deque<std::int16_t> pending_samples_;
+  std::deque<float> pending_samples_;
 };
 
 }  // namespace tempolink::audio

@@ -10,18 +10,20 @@
 #include <unordered_map>
 #include <vector>
 
-#include "tempolink/audio/IAudioCodec.h"
 #include "tempolink/audio/IAudioInputDevice.h"
 #include "tempolink/audio/IAudioOutputDevice.h"
 #include "tempolink/client/AudioBridgePort.h"
+#include "tempolink/client/audio/MetronomeProcessor.h"
+#include "tempolink/client/audio/ReverbProcessor.h"
+#include "tempolink/client/audio/MultiStreamMixer.h"
 
 namespace tempolink::client {
 
 class AudioPipeline {
  public:
-  using EncodedFrameCallback = std::function<void(std::span<const std::byte>)>;
-
-  bool Start(EncodedFrameCallback on_frame_encoded);
+  using CapturedPcmCallback = std::function<void(std::span<const float>)>;
+  
+  bool Start(CapturedPcmCallback on_pcm_captured);
   void Stop();
   bool IsRunning() const;
 
@@ -56,52 +58,35 @@ class AudioPipeline {
   float MetronomeVolume() const;
 
   void SetPeerMonitorVolume(std::uint32_t participant_id, float volume);
-  void SetPeerMonitorPan(std::uint32_t participant_id, float pan);
   float PeerMonitorVolume(std::uint32_t participant_id) const;
+  void SetPeerMonitorPan(std::uint32_t participant_id, float pan);
   float PeerMonitorPan(std::uint32_t participant_id) const;
 
-  void HandleIncomingAudio(std::span<const std::byte> encoded_payload,
-                           std::uint32_t sender_participant_id = 0);
+  void HandleIncomingAudio(std::uint32_t sender_participant_id, std::span<const float> pcm);
 
  private:
-  void OnCapturedFrame(std::span<const std::int16_t> pcm);
-  void ApplySimpleReverb(std::vector<std::int16_t>& pcm);
-  void MixMetronomeClick(std::vector<std::int16_t>& pcm);
-
-  struct PeerMonitorMix {
-    float volume = 1.0F;
-    float pan = 0.0F;
-  };
+  void OnCapturedFrame(std::span<const float> pcm);
 
   tempolink::audio::AudioCaptureConfig capture_config_{};
   tempolink::audio::AudioPlaybackConfig playback_config_{};
   std::unique_ptr<tempolink::audio::IAudioInputDevice> audio_input_;
   std::unique_ptr<tempolink::audio::IAudioOutputDevice> audio_output_;
-  std::unique_ptr<tempolink::audio::IAudioCodec> audio_encoder_;
-  std::unique_ptr<tempolink::audio::IAudioCodec> audio_decoder_;
   std::shared_ptr<AudioBridgePort> audio_bridge_;
 
+  audio::MetronomeProcessor metronome_processor_;
+  audio::ReverbProcessor reverb_processor_;
+  audio::MultiStreamMixer peer_mixer_;
+
   mutable std::mutex callback_mutex_;
-  EncodedFrameCallback encoded_frame_callback_;
+  CapturedPcmCallback captured_pcm_callback_;
   std::atomic_bool running_{false};
   std::atomic_bool muted_{false};
   std::atomic<float> input_gain_{1.0F};
-  std::atomic<float> input_reverb_{0.0F};
   std::atomic<float> volume_{1.0F};
   std::atomic<float> input_level_{0.0F};
   std::atomic<float> output_level_{0.0F};
   std::string selected_input_device_;
   std::string selected_output_device_;
-
-  std::atomic_bool metronome_enabled_{false};
-  std::atomic_int metronome_bpm_{120};
-  std::atomic<float> metronome_volume_{0.35F};
-  std::uint64_t metronome_phase_samples_ = 0;
-  std::uint32_t metronome_beat_index_ = 0;
-  std::vector<std::int16_t> reverb_delay_line_;
-  std::size_t reverb_write_index_ = 0;
-  mutable std::mutex peer_mix_mutex_;
-  std::unordered_map<std::uint32_t, PeerMonitorMix> peer_monitor_mix_;
 };
 
 }  // namespace tempolink::client

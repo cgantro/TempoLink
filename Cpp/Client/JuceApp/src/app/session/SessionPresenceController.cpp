@@ -13,7 +13,9 @@ SessionPresenceController::SessionPresenceController(
     SignalingClient& signaling_client)
     : session_view_(session_view),
       session_(session),
-      signaling_client_(signaling_client) {}
+      signaling_client_(signaling_client) {
+  session_view_.setSignalingClient(signaling_client_);
+}
 
 void SessionPresenceController::reset() {
   participants_.clear();
@@ -189,6 +191,11 @@ void SessionPresenceController::handleSignalingEvent(
         peer_latency_ms_[event.from_user_id] = juce::jlimit(0, 5000, rtt_ms);
       }
     }
+    return;
+  }
+
+  if (event.type == SignalingClient::Event::Type::ChatMessage) {
+    session_view_.addChatMessage(event.from_user_id, event.message, false);
     return;
   }
 

@@ -23,6 +23,13 @@ std::uint64_t NowMicros() {
       std::chrono::duration_cast<std::chrono::microseconds>(now).count());
 }
 
+float SmoothLevel(float current, float target) {
+  if (target > current) {
+    return target;  // Fast attack
+  }
+  return current * 0.9F + target * 0.1F;  // Slow decay
+}
+
 }  // namespace
 
 bool ClientSession::Start(const Config& config) {
@@ -47,15 +54,35 @@ bool ClientSession::Start(const Config& config) {
     return false;
   }
 
+#ifdef TEMPOLINK_USE_OPUS
+  encoder_ = std::make_unique<tempolink::client::codec::OpusAudioEncoder>(
+      config.sample_rate_hz ? config.sample_rate_hz : 48000, 2);
+  encoder_->setBitrate(64000);
+#endif
+
   const bool audio_started = audio_pipeline_.Start(
-      [this](std::span<const std::byte> encoded_frame) {
+      [this](std::span<const float> pcm) {
         if (!running_.load(std::memory_order_acquire) ||
             !joined_.load(std::memory_order_acquire)) {
           return;
         }
-        SendPacket(tempolink::net::PacketType::kAudio, encoded_frame);
+#ifdef TEMPOLINK_USE_OPUS
+        if (encoder_) {
+          static thread_local std::vector<uint8_t> encode_buffer;
+          int encoded_bytes = encoder_->encode(pcm.data(), static_cast<int>(pcm.size() / 2), encode_buffer);
+          if (encoded_bytes > 0) {
+            SendPacket(tempolink::net::PacketType::kAudio, 
+                       std::span<const std::byte>(reinterpret_cast<const std::byte*>(encode_buffer.data()), encoded_bytes));
+          }
+        }
+#else
+        SendPacket(tempolink::net::PacketType::kAudio, std::span<const std::byte>(reinterpret_cast<const std::byte*>(pcm.data()), pcm.size_bytes()));
+#endif
       });
   if (!audio_started) {
+#ifdef TEMPOLINK_USE_OPUS
+    encoder_.reset();
+#endif
     transport_.Stop();
     return false;
   }
@@ -79,6 +106,10 @@ void ClientSession::Stop() {
   stats_.connected = false;
   peer_jitter_buffers_.clear();
   peer_levels_.clear();
+#ifdef TEMPOLINK_USE_OPUS
+  decoders_.clear();
+  encoder_.reset();
+#endif
   audio_pipeline_.Stop();
   transport_.Stop();
 }
@@ -154,19 +185,47 @@ bool ClientSession::Tick() {
       auto& jitter_buffer = peer_jitter_buffers_[packet.header.sender_id];
       jitter_buffer.Push(packet.header.sequence, packet.header.timestamp_us,
                          packet.payload);
-      auto& peer_level = peer_levels_[packet.header.sender_id];
-      const float boost = std::clamp(
-          static_cast<float>(packet.payload.size()) / 480.0F, 0.04F, 0.35F);
-      peer_level = std::clamp(peer_level + boost, 0.0F, 1.0F);
+      
+      // Level tracking is now updated during actual decoding in the render loop/Tick
     }
   }
 
   constexpr std::size_t kTargetJitterDepthPackets = 3;
   for (auto& [sender_id, jitter_buffer] : peer_jitter_buffers_) {
-    (void)sender_id;
     const auto ready_frames = jitter_buffer.PopReady(kTargetJitterDepthPackets);
     for (const auto& frame : ready_frames) {
-      audio_pipeline_.HandleIncomingAudio(frame.payload, sender_id);
+#ifdef TEMPOLINK_USE_OPUS
+      // Decode with the specific peer's decoder
+      auto& decoder = decoders_[sender_id];
+      if (!decoder) {
+        decoder = std::make_unique<tempolink::client::codec::OpusAudioDecoder>(
+            audio_pipeline_.SampleRateHz(), 2);
+      }
+      
+      static thread_local std::vector<float> decode_buffer;
+      int decoded_samples = decoder->decode(
+          reinterpret_cast<const uint8_t*>(frame.payload.data()),
+          static_cast<int>(frame.payload.size()),
+          decode_buffer, 
+          audio_pipeline_.FrameSamples());
+
+      if (decoded_samples > 0) {
+        audio_pipeline_.HandleIncomingAudio(sender_id, decode_buffer);
+        
+        // Update level tracking for UI
+        float current_peak = 0.0f;
+        for (float s : decode_buffer) {
+            current_peak = std::max(current_peak, std::abs(s));
+        }
+        peer_levels_[sender_id] = SmoothLevel(peer_levels_[sender_id], current_peak);
+      }
+#else
+      // Pass-through PCM
+      audio_pipeline_.HandleIncomingAudio(
+          sender_id, std::span<const float>(
+                         reinterpret_cast<const float*>(frame.payload.data()),
+                         frame.payload.size() / sizeof(float)));
+#endif
     }
   }
 

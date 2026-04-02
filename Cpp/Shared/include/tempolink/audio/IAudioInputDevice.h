@@ -16,7 +16,7 @@ struct AudioCaptureConfig {
   std::uint16_t frame_samples = 480;  // 10ms @ 48kHz
 };
 
-using AudioCaptureCallback = std::function<void(std::span<const std::int16_t>)>;
+using AudioCaptureCallback = std::function<void(std::span<const float>)>;
 
 class IAudioInputDevice {
  public:

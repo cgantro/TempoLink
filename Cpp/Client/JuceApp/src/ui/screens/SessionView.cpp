@@ -13,6 +13,9 @@ SessionView::SessionView() {
   participant_list_card_.setTitle("Participants");
   addAndMakeVisible(participant_list_card_);
 
+  chat_card_.setTitle("Room Chat");
+  addAndMakeVisible(chat_card_);
+
   participants_viewport_.setViewedComponent(&participants_container_, false);
   participants_viewport_.setScrollBarsShown(true, false);
   participant_list_card_.setContent(participants_viewport_);
@@ -105,6 +108,23 @@ void SessionView::setConnectionMode(ConnectionBadgeState state) {
 
 void SessionView::setStatusText(const juce::String& status_text) {
   top_status_bar_.setStatusText(status_text);
+}
+
+void SessionView::setSignalingClient(SignalingClient& client) {
+  chat_panel_ = std::make_unique<tempolink::juceapp::ui::ChatPanel>(client);
+  chat_card_.setContent(*chat_panel_);
+  resized();
+}
+
+void SessionView::addChatMessage(const std::string& user_id, const juce::String& text, bool is_local) {
+  if (chat_panel_) {
+    tempolink::juceapp::ui::ChatPanel::Message msg;
+    msg.user_id = user_id;
+    msg.text = text;
+    msg.is_local = is_local;
+    msg.timestamp = juce::Time::getCurrentTime().toString(true, false);
+    chat_panel_->AddMessage(msg);
+  }
 }
 
 void SessionView::setParticipants(
@@ -312,7 +332,9 @@ void SessionView::resized() {
   left.removeFromTop(8);
   main_out_panel_.setBounds(left);
 
-  participant_list_card_.setBounds(center);
+  participant_list_card_.setBounds(center.removeFromTop(static_cast<int>(center.getHeight() * 0.65f)));
+  center.removeFromTop(10);
+  chat_card_.setBounds(center);
 
   layoutParticipantRows();
 }

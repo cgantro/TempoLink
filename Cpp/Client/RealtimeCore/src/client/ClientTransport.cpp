@@ -55,17 +55,29 @@ bool ClientTransport::SendPacket(tempolink::net::PacketType type,
     return false;
   }
 
+  // Minimize heap allocations by using the pre-allocated send_buffer_
+  // and encoding directly into it.
   tempolink::net::Packet packet;
   packet.header.type = type;
   packet.header.room_id = endpoint_.room_id;
   packet.header.sender_id = endpoint_.participant_id;
   packet.header.sequence = sequence_.fetch_add(1, std::memory_order_relaxed) + 1;
   packet.header.timestamp_us = NowMicros();
+  
+  // We avoid the vector copy by temporarily assigning the span
+  // if Packet is refactored to allow it. For now, since EncodePacket
+  // takes Packet, we might still have a copy if we keep using the struct.
+  // Actually, let's optimize the encoding logic directly here or use a lighter struct.
   packet.payload.assign(payload.begin(), payload.end());
 
-  const auto encoded = tempolink::net::EncodePacket(packet);
   std::scoped_lock lock(send_mutex_);
-  return socket_.SendTo(encoded, endpoint_.server_host, endpoint_.server_port);
+  const std::size_t encoded_size = tempolink::net::EncodePacket(packet, send_buffer_);
+  if (encoded_size == 0) {
+    return false;
+  }
+
+  return socket_.SendTo(std::span<const std::byte>(send_buffer_.data(), encoded_size),
+                        endpoint_.server_host, endpoint_.server_port);
 }
 
 bool ClientTransport::SendTextPacket(tempolink::net::PacketType type,

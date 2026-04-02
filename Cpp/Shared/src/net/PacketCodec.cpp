@@ -55,12 +55,21 @@ std::uint64_t ReadU64(const std::byte* in) {
 }  // namespace
 
 std::vector<std::byte> EncodePacket(const Packet& packet) {
+  std::vector<std::byte> encoded(PacketHeader::kEncodedSize + packet.payload.size());
+  EncodePacket(packet, encoded);
+  return encoded;
+}
+
+std::size_t EncodePacket(const Packet& packet, std::span<std::byte> destination) {
+  const std::size_t required_size = PacketHeader::kEncodedSize + packet.payload.size();
+  if (destination.size() < required_size) {
+    return 0;
+  }
+
   PacketHeader header = packet.header;
   header.payload_size = static_cast<std::uint32_t>(packet.payload.size());
 
-  std::vector<std::byte> encoded(PacketHeader::kEncodedSize +
-                                 packet.payload.size());
-  std::byte* out = encoded.data();
+  std::byte* out = destination.data();
   WriteU32(out, header.magic);
   out[4] = static_cast<std::byte>(header.version);
   out[5] = static_cast<std::byte>(header.type);
@@ -77,14 +86,11 @@ std::vector<std::byte> EncodePacket(const Packet& packet) {
   WriteU32(out + 36, header.payload_size);
 
   if (!packet.payload.empty()) {
-    assert(out != nullptr);
-    assert(packet.payload.data() != nullptr);
-    assert(packet.payload.size() <= encoded.size() - PacketHeader::kEncodedSize);
     std::memcpy(out + PacketHeader::kEncodedSize, packet.payload.data(),
                 packet.payload.size());
   }
 
-  return encoded;
+  return required_size;
 }
 
 std::optional<Packet> DecodePacket(std::span<const std::byte> bytes) {

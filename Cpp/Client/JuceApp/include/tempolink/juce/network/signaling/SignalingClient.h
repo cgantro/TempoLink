@@ -14,7 +14,7 @@
 class SignalingClient {
  public:
   struct Event {
-    enum class Type { RoomJoined, PeerJoined, PeerLeft, PeerPing, PeerPong, Error };
+    enum class Type { RoomJoined, PeerJoined, PeerLeft, PeerPing, PeerPong, ChatMessage, Error };
     Type type = Type::Error;
     std::string room_code;
     std::string from_user_id;
@@ -36,6 +36,7 @@ class SignalingClient {
   bool isConnected() const;
   bool sendPeerPing(const std::string& to_user_id, std::uint64_t sent_at_ms);
   bool sendPeerPong(const std::string& to_user_id, std::uint64_t sent_at_ms);
+  bool sendChatMessage(const juce::String& text, const std::string& to_user_id = "");
 
  private:
   bool performHandshake(const std::string& host, int port, const std::string& path_query);

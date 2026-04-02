@@ -29,8 +29,9 @@ if(NOT TARGET juce::juce_core)
   endif()
 endif()
 
-find_package(httplib CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
+## FetchContent를 통해 전역 타겟으로 제공되므로 find_package 생략
+# find_package(httplib CONFIG REQUIRED)
+# find_package(nlohmann_json CONFIG REQUIRED)
 
 juce_add_gui_app(tempolink_juce_client PRODUCT_NAME "TempoLink JUCE Client")
 
@@ -85,6 +86,7 @@ target_sources(
     include/tempolink/juce/ui/screens/MyRoomsView.h
     include/tempolink/juce/ui/screens/NewsView.h
     include/tempolink/juce/ui/components/ParticipantStripComponent.h
+    include/tempolink/juce/ui/components/ChatPanel.h
     include/tempolink/juce/ui/screens/ProfileView.h
     include/tempolink/juce/ui/screens/QnaView.h
     include/tempolink/juce/ui/screens/RoomEntrySettingsView.h
@@ -145,6 +147,7 @@ target_sources(
     src/ui/screens/MyRoomsView.cpp
     src/ui/screens/NewsView.cpp
     src/ui/components/ParticipantStripComponent.cpp
+    src/ui/components/ChatPanel.cpp
     src/ui/screens/ProfileView.cpp
     src/ui/screens/QnaView.cpp
     src/ui/screens/RoomEntrySettingsView.cpp
@@ -237,6 +240,17 @@ if(TEMPOLINK_BUILD_JUCE_VST3_BRIDGE)
   )
 endif()
 
+# --- 로컬 디버깅을 위한 DLL 자동 복사 ---
+if(WIN32)
+  file(GLOB OPENSSL_DLLS "${OPENSSL_ROOT_DIR}/bin/*.dll")
+  if(OPENSSL_DLLS)
+    add_custom_command(TARGET tempolink_juce_client POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_DLLS} $<TARGET_FILE_DIR:tempolink_juce_client>
+      COMMENT "Copying OpenSSL DLLs to output directory for debugging"
+    )
+  endif()
+endif()
+
 # --- Installation and Packaging (CPack) ---
 include(GNUInstallDirs)
 
@@ -271,7 +285,7 @@ if(APPLE)
 elseif(UNIX AND NOT APPLE)
   install(TARGETS tempolink_juce_client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 elseif(WIN32)
-  # 자동으로 의존성 DLL(예: vcpkg의 OpenSSL 등)을 분석하여 같은 폴더에 설치합니다.
+  # 자동으로 의존성 DLL(OpenSSL 등)을 분석하여 같은 폴더에 복사합니다.
   install(TARGETS tempolink_juce_client
     RUNTIME_DEPENDENCY_SET app_deps
     RUNTIME DESTINATION .
@@ -281,7 +295,7 @@ elseif(WIN32)
     DESTINATION .
     PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
     POST_EXCLUDE_REGEXES ".*[\\\\/][Ss][Yy][Ss][Tt][Ee][Mm]32[\\\\/].*"
-    DIRECTORIES "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+    DIRECTORIES "${OPENSSL_ROOT_DIR}/bin"
   )
 endif()
 

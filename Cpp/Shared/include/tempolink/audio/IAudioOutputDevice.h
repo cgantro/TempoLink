@@ -30,7 +30,7 @@ class IAudioOutputDevice {
 
   virtual void SetOutputVolume(float gain) = 0;
   virtual float OutputVolume() const = 0;
-  virtual void PlayFrame(std::span<const std::int16_t> pcm) = 0;
+  virtual void PlayFrame(std::span<const float> pcm) = 0;
 };
 
 }  // namespace tempolink::audio

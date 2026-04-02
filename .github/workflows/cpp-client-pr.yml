@@ -11,7 +11,6 @@ on:
 
 jobs:
   build-test:
-    if: github.head_ref == 'dev'
     strategy:
       fail-fast: false
       matrix:
@@ -25,70 +24,34 @@ jobs:
       - name: Setup CMake and Ninja
         uses: lukka/get-cmake@latest
 
-      - name: Setup VCPKG Environment
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> "$GITHUB_ENV"
-          else
-            echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
-          fi
-          mkdir -p "${{ github.workspace }}/vcpkg-binary-cache"
-          echo "VCPKG_DEFAULT_BINARY_CACHE=${{ github.workspace }}/vcpkg-binary-cache" >> "$GITHUB_ENV"
-
       - name: Install Ubuntu Dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libssl-dev \
             libasound2-dev libjack-jackd2-dev libfreetype-dev \
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
             libxinerama-dev libxrandr-dev libxrender-dev \
             libwebkit2gtk-4.1-dev libglu1-mesa-dev mesa-common-dev
 
+      - name: Install Windows Dependencies
+        if: runner.os == 'Windows'
+        run: choco install openssl
+
+      - name: Install macOS Dependencies
+        if: runner.os == 'macOS'
+        run: brew install openssl@3
+
       - name: Setup MSVC (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Restore vcpkg Caches
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.VCPKG_ROOT }}/downloads
-            ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-            ${{ github.workspace }}/vcpkg_installed
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-
-
-      - name: Bootstrap vcpkg (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "${{ github.workspace }}\vcpkg")) { git clone https://github.com/microsoft/vcpkg "${{ github.workspace }}\vcpkg" }
-          & "${{ github.workspace }}\vcpkg\bootstrap-vcpkg.bat"
-
-      - name: Install vcpkg Dependencies
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            TRIPLET="x64-windows"
-            VCPKG_EXEC="${{ env.VCPKG_ROOT }}/vcpkg.exe"
-          elif [ "$RUNNER_OS" = "macOS" ]; then
-            if [ "$(uname -m)" = "arm64" ]; then TRIPLET="arm64-osx"; else TRIPLET="x64-osx"; fi
-            VCPKG_EXEC="${{ env.VCPKG_ROOT }}/vcpkg"
-          else
-            TRIPLET="x64-linux"
-            VCPKG_EXEC="${{ env.VCPKG_ROOT }}/vcpkg"
-          fi
-          "$VCPKG_EXEC" install --triplet "$TRIPLET" --x-install-root="${{ github.workspace }}/vcpkg_installed"
 
       - name: Cache JUCE deps
         uses: actions/cache@v4
         with:
           path: |
-            out/build/juce-client-debug/_deps/juce-src
-            out/build/juce-client-debug/_deps/juce-build
+            .cmake_deps/juce-src
           key: juce-deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json') }}
           restore-keys: |
             juce-deps-${{ runner.os }}-
@@ -144,9 +107,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .sccache
-          key: sccache-data-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/**') }}
+          key: sccache-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
-            sccache-data-${{ runner.os }}-
+            sccache-${{ runner.os }}-
 
       - name: Start sccache server
         shell: bash
@@ -160,58 +123,22 @@ jobs:
           cmake --preset juce-client-debug `
             "-DCMAKE_C_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
             "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
-            "-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake" `
-            "-DVCPKG_TARGET_TRIPLET=x64-windows" `
-            "-DVCPKG_INSTALLED_DIR=${{ github.workspace }}\vcpkg_installed"
+            "-DOPENSSL_ROOT_DIR=C:/Program Files/OpenSSL-Win64"
 
       - name: Configure CMake (macOS/Linux)
         if: runner.os != 'Windows'
         shell: bash
         run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            export OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
+          fi
           cmake --preset juce-client-debug \
             -DCMAKE_C_COMPILER_LAUNCHER="$SCCACHE_PATH" \
-            -DCMAKE_CXX_COMPILER_LAUNCHER="$SCCACHE_PATH" \
-            -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed"
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$SCCACHE_PATH"
 
       - name: Build C++ Client
         run: cmake --build --preset juce-client-debug --parallel
 
-      - name: Create .env.deploy
-        shell: bash
-        run: |
-          echo "TEMPOLINK_CONTROL_PLANE_BASE_URL=${{ secrets.TEMPOLINK_CONTROL_PLANE_BASE_URL }}" > .env.deploy
-          echo "TEMPOLINK_CONTROL_PLANE_HOST=${{ secrets.TEMPOLINK_CONTROL_PLANE_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_CONTROL_PLANE_PORT=${{ secrets.TEMPOLINK_CONTROL_PLANE_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_DEFAULT_RELAY_HOST=${{ secrets.TEMPOLINK_DEFAULT_RELAY_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_DEFAULT_RELAY_PORT=${{ secrets.TEMPOLINK_DEFAULT_RELAY_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_OAUTH_CALLBACK_HOST=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_OAUTH_CALLBACK_PORT=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_OAUTH_CALLBACK_PATH=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_PATH }}" >> .env.deploy
-          echo "TEMPOLINK_BRIDGE_HOST=${{ secrets.TEMPOLINK_BRIDGE_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT }}" >> .env.deploy
-
-      - name: Package Windows (Inno Setup)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $ISCC = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-          if (-not $ISCC) { $ISCC = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" }
-          if (-not (Test-Path $ISCC)) { exit 1 }
-
-          $StagingDir = "$PWD\staging-win"
-          $OutDir = "$PWD\installer-output"
-          cmake --install out/build/juce-client-debug --prefix "$StagingDir" --config Debug
-          Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
-          & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
-
-      - name: Package (CPack)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          cd out/build/juce-client-debug
-          cpack -C Debug
-
-      - name: Stop sccache server
+      - name: Show sccache stats
         shell: bash
         run: sccache --show-stats || true

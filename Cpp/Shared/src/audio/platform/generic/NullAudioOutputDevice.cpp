@@ -42,7 +42,7 @@ float NullAudioOutputDevice::OutputVolume() const {
   return output_volume_.load();
 }
 
-void NullAudioOutputDevice::PlayFrame(std::span<const std::int16_t> pcm) {
+void NullAudioOutputDevice::PlayFrame(std::span<const float> pcm) {
   if (!running_.load()) {
     return;
   }

@@ -82,6 +82,14 @@ std::optional<SignalingClient::Event> ParseSignalingEvent(const juce::String& me
     return event;
   }
 
+  if (type == "chat.message") {
+    event.type = SignalingClient::Event::Type::ChatMessage;
+    event.message = juce::String(jp::String(payload, "message", ""));
+    event.sent_at_ms = static_cast<std::uint64_t>(
+        jsonparse::Int64(payload, "sentAtMs", 0));
+    return event;
+  }
+
   if (type == "signal.error") {
     event.type = SignalingClient::Event::Type::Error;
     event.message = juce::String(jp::String(payload, "message",

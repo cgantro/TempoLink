@@ -13,7 +13,7 @@
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        "FETCHCONTENT_BASE_DIR": "${sourceDir}/.cmake_deps"
       }
     },
     {
@@ -24,6 +24,9 @@
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "OPENSSL_ROOT_DIR": "C:/Program Files/OpenSSL-Win64"
       }
     },
     {
@@ -85,6 +88,16 @@
       }
     },
     {
+      "name": "juce-client-release",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TEMPOLINK_BUILD_CLIENT": "OFF",
+        "TEMPOLINK_BUILD_JUCE_CLIENT": "ON",
+        "TEMPOLINK_FETCH_JUCE": "ON"
+      }
+    },
+    {
       "name": "client-debug-win",
       "inherits": ["base-win-ninja", "client-debug"]
     },
@@ -116,6 +129,11 @@
     {
       "name": "juce-client-debug",
       "configurePreset": "juce-client-debug",
+      "jobs": 0
+    },
+    {
+      "name": "juce-client-release",
+      "configurePreset": "juce-client-release",
       "jobs": 0
     },
     {

@@ -10,9 +10,11 @@
 
 #include "tempolink/juce/ui/common/PanelCard.h"
 #include "tempolink/juce/ui/components/ParticipantStripComponent.h"
+#include "tempolink/juce/ui/components/ChatPanel.h"
 #include "tempolink/juce/ui/session/MainOutPanel.h"
 #include "tempolink/juce/ui/session/MyInputPanel.h"
 #include "tempolink/juce/ui/session/TopStatusBar.h"
+#include "tempolink/juce/network/signaling/SignalingClient.h"
 
 class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
  public:
@@ -63,6 +65,9 @@ class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
       std::function<void(std::string, float)> on_pan_changed);
   void setOnOpenAudioSettings(std::function<void()> on_open_audio_settings);
 
+  void setSignalingClient(SignalingClient& client);
+  void addChatMessage(const std::string& user_id, const juce::String& text, bool is_local = false);
+
   void resized() override;
   void paint(juce::Graphics& g) override;
 
@@ -99,4 +104,7 @@ class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
   PanelCard participant_list_card_;
   juce::Viewport participants_viewport_;
   juce::Component participants_container_;
+
+  PanelCard chat_card_;
+  std::unique_ptr<tempolink::juceapp::ui::ChatPanel> chat_panel_;
 };

@@ -16,7 +16,8 @@ enum class PacketType : std::uint8_t {
   kControl = 7,
   kClockSync = 8,
   kClockSyncAck = 9,
-  kStats = 10
+  kStats = 10,
+  kChat = 11
 };
 
 struct PacketHeader {
