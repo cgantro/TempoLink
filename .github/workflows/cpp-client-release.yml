@@ -61,6 +61,16 @@ jobs:
           & "${{ github.workspace }}\vcpkg\bootstrap-vcpkg.bat"
           & "${{ github.workspace }}\vcpkg\vcpkg.exe" install --triplet x64-windows
 
+      - name: Cache JUCE deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            out/build/juce-client-debug/_deps/juce-src
+            out/build/juce-client-debug/_deps/juce-build
+          key: juce-deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json') }}
+          restore-keys: |
+            juce-deps-${{ runner.os }}-
+
       - name: Cache sccache binary
         id: cache-sccache-bin
         uses: actions/cache@v4
