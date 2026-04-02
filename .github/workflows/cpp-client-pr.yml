@@ -1,0 +1,176 @@
+name: C++ Client PR Check
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "Cpp/**"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - ".github/workflows/cpp-client-pr.yml"
+
+jobs:
+  build-test:
+    if: github.head_ref == 'dev'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install Ubuntu Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libjack-jackd2-dev libfreetype-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libwebkit2gtk-4.1-dev libglu1-mesa-dev mesa-common-dev
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Enable vcpkg GitHub Actions Cache
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            core.exportVariable('VCPKG_BINARY_SOURCES', 'clear;x-gha,readwrite');
+
+      - name: Cache JUCE deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            out/build/juce-client-debug/_deps/juce-src
+            out/build/juce-client-debug/_deps/juce-build
+          key: juce-deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json') }}
+          restore-keys: |
+            juce-deps-${{ runner.os }}-
+
+      - name: Cache sccache binary
+        id: cache-sccache-bin
+        uses: actions/cache@v4
+        with:
+          path: sccache-bin
+          key: sccache-bin-${{ runner.os }}-v0.14.0
+
+      - name: Download sccache
+        if: steps.cache-sccache-bin.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p sccache-bin
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "arm64" ]; then
+              curl -L https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-aarch64-apple-darwin.tar.gz | tar xz --strip-components 1 -C sccache-bin
+            else
+              curl -L https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-apple-darwin.tar.gz | tar xz --strip-components 1 -C sccache-bin
+            fi
+          elif [ "$RUNNER_OS" = "Linux" ]; then
+            curl -L https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz | tar xz --strip-components 1 -C sccache-bin
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            curl -L https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-pc-windows-msvc.tar.gz | tar xz --strip-components 1 -C sccache-bin
+          fi
+
+      - name: Setup sccache environment (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "SCCACHE_PATH=${{ github.workspace }}/sccache-bin/sccache" >> "$GITHUB_ENV"
+          echo "${{ github.workspace }}/sccache-bin" >> "$GITHUB_PATH"
+          echo "SCCACHE_DIR=${{ github.workspace }}/.sccache" >> "$GITHUB_ENV"
+          echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"
+
+      - name: Verify and Setup sccache (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $SccacheBin = "${{ github.workspace }}\sccache-bin"
+          $SCCACHE = (Resolve-Path "$SccacheBin\sccache.exe").Path
+          if (-not (Test-Path $SCCACHE)) { throw "sccache.exe not found at $SCCACHE" }
+          & $SCCACHE --version
+          "SCCACHE_PATH=$SCCACHE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$SccacheBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "SCCACHE_DIR=${{ github.workspace }}\.sccache" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SCCACHE_GHA_ENABLED=false" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Cache sccache artifacts
+        uses: actions/cache@v4
+        with:
+          path: .sccache
+          key: sccache-data-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/**') }}
+          restore-keys: |
+            sccache-data-${{ runner.os }}-
+
+      - name: Start sccache server
+        shell: bash
+        run: |
+          sccache --start-server || true
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --preset juce-client-debug `
+            "-DCMAKE_C_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:SCCACHE_PATH"
+
+      - name: Configure CMake (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cmake --preset juce-client-debug \
+            -DCMAKE_C_COMPILER_LAUNCHER="$SCCACHE_PATH" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$SCCACHE_PATH"
+
+      - name: Build C++ Client
+        run: cmake --build --preset juce-client-debug --parallel
+
+      - name: Create .env.deploy
+        shell: bash
+        run: |
+          echo "TEMPOLINK_CONTROL_PLANE_BASE_URL=${{ secrets.TEMPOLINK_CONTROL_PLANE_BASE_URL }}" > .env.deploy
+          echo "TEMPOLINK_CONTROL_PLANE_HOST=${{ secrets.TEMPOLINK_CONTROL_PLANE_HOST }}" >> .env.deploy
+          echo "TEMPOLINK_CONTROL_PLANE_PORT=${{ secrets.TEMPOLINK_CONTROL_PLANE_PORT }}" >> .env.deploy
+          echo "TEMPOLINK_DEFAULT_RELAY_HOST=${{ secrets.TEMPOLINK_DEFAULT_RELAY_HOST }}" >> .env.deploy
+          echo "TEMPOLINK_DEFAULT_RELAY_PORT=${{ secrets.TEMPOLINK_DEFAULT_RELAY_PORT }}" >> .env.deploy
+          echo "TEMPOLINK_OAUTH_CALLBACK_HOST=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_HOST }}" >> .env.deploy
+          echo "TEMPOLINK_OAUTH_CALLBACK_PORT=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_PORT }}" >> .env.deploy
+          echo "TEMPOLINK_OAUTH_CALLBACK_PATH=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_PATH }}" >> .env.deploy
+          echo "TEMPOLINK_BRIDGE_HOST=${{ secrets.TEMPOLINK_BRIDGE_HOST }}" >> .env.deploy
+          echo "TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT }}" >> .env.deploy
+          echo "TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT }}" >> .env.deploy
+
+      - name: Package Windows (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ISCC = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          if (-not $ISCC) { $ISCC = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" }
+          if (-not (Test-Path $ISCC)) { exit 1 }
+
+          $StagingDir = "$PWD\staging-win"
+          cmake --install out/build/juce-client-debug --prefix "$StagingDir" --config Debug
+          Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
+          & $ISCC "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp/Client/Installer/TempoLink.iss"
+
+      - name: Package (CPack)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd out/build/juce-client-debug
+          cpack -C Debug
+
+      - name: Stop sccache server
+        shell: bash
+        run: sccache --show-stats || true
