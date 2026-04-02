@@ -24,6 +24,17 @@ jobs:
       - name: Setup CMake and Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Setup VCPKG Environment
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> "$GITHUB_ENV"
+          else
+            echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+          fi
+          mkdir -p "${{ github.workspace }}/vcpkg-binary-cache"
+          echo "VCPKG_DEFAULT_BINARY_CACHE=${{ github.workspace }}/vcpkg-binary-cache" >> "$GITHUB_ENV"
+
       - name: Install Ubuntu Dependencies
         if: runner.os == 'Linux'
         run: |
@@ -38,17 +49,15 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Restore vcpkg Caches (Windows)
-        if: runner.os == 'Windows'
+      - name: Restore vcpkg Caches
         uses: actions/cache@v4
         with:
           path: |
-            ${{ github.workspace }}\vcpkg\downloads
-            ${{ github.workspace }}\vcpkg-binary-cache
-            ${{ github.workspace }}\vcpkg_installed
-          key: windows-vcpkg-${{ hashFiles('vcpkg.json') }}
+            ${{ github.workspace }}/vcpkg-binary-cache
+            ${{ github.workspace }}/vcpkg_installed
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            windows-vcpkg-
+            vcpkg-${{ runner.os }}-
 
       - name: Bootstrap and Install vcpkg (Windows)
         if: runner.os == 'Windows'
@@ -147,7 +156,8 @@ jobs:
         run: |
           cmake --preset juce-client-debug \
             -DCMAKE_C_COMPILER_LAUNCHER="$SCCACHE_PATH" \
-            -DCMAKE_CXX_COMPILER_LAUNCHER="$SCCACHE_PATH"
+            -DCMAKE_CXX_COMPILER_LAUNCHER="$SCCACHE_PATH" \
+            -DVCPKG_INSTALLED_DIR="${{ github.workspace }}/vcpkg_installed"
 
       - name: Build C++ Client
         run: cmake --build --preset juce-client-debug --parallel
