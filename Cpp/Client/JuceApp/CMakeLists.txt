@@ -309,6 +309,19 @@ if(APPLE)
 
 elseif(UNIX AND NOT APPLE)
   install(TARGETS tempolink_juce_client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+elseif(WIN32)
+  # 자동으로 의존성 DLL(예: vcpkg의 OpenSSL 등)을 분석하여 같은 폴더에 설치합니다.
+  install(TARGETS tempolink_juce_client
+    RUNTIME_DEPENDENCY_SET app_deps
+    RUNTIME DESTINATION .
+  )
+
+  install(RUNTIME_DEPENDENCY_SET app_deps
+    DESTINATION .
+    PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
+    POST_EXCLUDE_REGEXES ".*[\\\\/][Ss][Yy][Ss][Tt][Ee][Mm]32[\\\\/].*"
+    DIRECTORIES "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+  )
 endif()
 
 # CPack Configuration

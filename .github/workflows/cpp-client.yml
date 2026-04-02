@@ -1,13 +1,6 @@
 name: C++ Client CI/CD
 
 on:
-  push:
-    branches: ["dev", "main"]
-    paths:
-      - "Cpp/**"
-      - "CMakeLists.txt"
-      - "CMakePresets.json"
-      - ".github/workflows/cpp-client.yml"
   pull_request:
     branches: ["dev", "main"]
     paths:
@@ -63,6 +56,17 @@ jobs:
           where.exe ninja
 
       # -----------------------------
+      # vcpkg binary cache setup
+      # -----------------------------
+      - name: Enable vcpkg GitHub Actions Cache
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            core.exportVariable('VCPKG_BINARY_SOURCES', 'clear;x-gha,readwrite');
+
+      # -----------------------------
       # JUCE dependency cache
       # -----------------------------
       - name: Cache JUCE deps
@@ -76,10 +80,9 @@ jobs:
             juce-deps-${{ runner.os }}-
 
       # -----------------------------
-      # sccache: macOS / Linux only
+      # sccache: All OS
       # -----------------------------
       - name: Cache sccache binary
-        if: runner.os != 'Windows'
         id: cache-sccache-bin
         uses: actions/cache@v4
         with:
@@ -87,7 +90,7 @@ jobs:
           key: sccache-bin-${{ runner.os }}-v0.14.0
 
       - name: Download sccache
-        if: runner.os != 'Windows' && steps.cache-sccache-bin.outputs.cache-hit != 'true'
+        if: steps.cache-sccache-bin.outputs.cache-hit != 'true'
         shell: bash
         run: |
           mkdir -p sccache-bin
@@ -104,19 +107,24 @@ jobs:
           elif [ "$RUNNER_OS" = "Linux" ]; then
             curl -L https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-unknown-linux-musl.tar.gz \
               | tar xz --strip-components 1 -C sccache-bin
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            curl -L https://github.com/mozilla/sccache/releases/download/v0.14.0/sccache-v0.14.0-x86_64-pc-windows-msvc.tar.gz \
+              | tar xz --strip-components 1 -C sccache-bin
           fi
 
       - name: Setup sccache environment
-        if: runner.os != 'Windows'
         shell: bash
         run: |
-          echo "SCCACHE_PATH=$(pwd)/sccache-bin/sccache" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "SCCACHE_PATH=$(pwd)/sccache-bin/sccache.exe" >> "$GITHUB_ENV"
+          else
+            echo "SCCACHE_PATH=$(pwd)/sccache-bin/sccache" >> "$GITHUB_ENV"
+          fi
           echo "$(pwd)/sccache-bin" >> "$GITHUB_PATH"
           echo "SCCACHE_DIR=$(pwd)/.sccache" >> "$GITHUB_ENV"
           echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"
 
       - name: Cache sccache artifacts
-        if: runner.os != 'Windows'
         uses: actions/cache@v4
         with:
           path: .sccache
@@ -125,7 +133,6 @@ jobs:
             sccache-data-${{ runner.os }}-
 
       - name: Start sccache server
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           sccache --start-server || true
@@ -138,7 +145,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          cmake --preset juce-client-debug
+          cmake --preset juce-client-debug -DCMAKE_C_COMPILER_LAUNCHER="$env:SCCACHE_PATH" -DCMAKE_CXX_COMPILER_LAUNCHER="$env:SCCACHE_PATH"
 
       - name: Configure CMake (macOS/Linux)
         if: runner.os != 'Windows'
@@ -152,7 +159,6 @@ jobs:
         run: cmake --build --preset juce-client-debug --parallel
 
       - name: Show sccache stats
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           sccache --show-stats || true
@@ -201,36 +207,19 @@ jobs:
               exit 1
           }
 
-          # Broad pattern matching to find the correct TempoLink executable
-          $ExePath = Get-ChildItem -Path "." -Recurse -Filter *.exe |
-              Where-Object { $_.Name -match "tempolink" } |
-              Select-Object -First 1 -ExpandProperty FullName
-
-          if (-not $ExePath) {
-              Write-Host "=== All available .exe files (for debugging) ==="
-              Get-ChildItem -Path "." -Recurse -Filter *.exe | ForEach-Object { $_.FullName }
-              Write-Error "Could not find any TempoLink related executable for packaging."
-              exit 1
-          }
-
-          $ExeName = Split-Path $ExePath -Leaf
-          Write-Host "Using executable for installer: $ExePath ($ExeName)"
-
-          # --- 스테이징(Staging) 디렉터리 생성 ---
           $StagingDir = "$PWD\staging-win"
-          New-Item -ItemType Directory -Force -Path $StagingDir | Out-Null
 
-          # 1. 실행 파일 복사
-          Copy-Item $ExePath -Destination $StagingDir\
+          # 1. CMake install 실행 (실행 파일 및 의존성 DLL 자동 수집 후 복사)
+          cmake --install out/build/juce-client-debug --prefix "$StagingDir" --config Debug
 
-          # 2. 의존성 DLL 복사 (OpenSSL 등)
-          # 빌드 결과물(out) 디렉터리 하위의 모든 dll을 스테이징 폴더로 모읍니다.
-          Get-ChildItem -Path "out" -Recurse -Filter *.dll | Copy-Item -Destination $StagingDir\ -ErrorAction SilentlyContinue
+          # 2. 환경변수 파일 복사 (.env.deploy)
+          Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
 
-          # 3. 환경변수 파일 복사 (.env.deploy)
-          Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy"
+          Write-Host "=== Staged files for Inno Setup ==="
+          Get-ChildItem "$StagingDir" | Format-Table Name, Length, LastWriteTime
 
-          & $ISCC "/DAppDir=$StagingDir" "/DExeName=$ExeName" "Cpp/Client/Installer/TempoLink.iss"
+          # 3. Inno Setup 패키징
+          & $ISCC "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp/Client/Installer/TempoLink.iss"
 
       - name: Package (CPack)
         if: runner.os != 'Windows'
