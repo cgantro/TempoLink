@@ -35,16 +35,19 @@ jobs:
             libxinerama-dev libxrandr-dev libxrender-dev \
             libwebkit2gtk-4.1-dev libglu1-mesa-dev mesa-common-dev
 
-      - name: Cache vcpkg OpenSSL (Windows)
+      - name: Cache vcpkg artifacts (Windows)
         if: runner.os == 'Windows'
         uses: actions/cache@v4
         with:
           path: |
             C:/vcpkg/installed
             C:/vcpkg/packages
+            C:/vcpkg/downloads
             D:/vcpkg/installed
             D:/vcpkg/packages
-          key: vcpkg-openssl-${{ runner.os }}-x64-windows-v1
+            D:/vcpkg/downloads
+            C:/Users/runneradmin/AppData/Local/vcpkg/archives
+          key: vcpkg-openssl-${{ runner.os }}-x64-windows-v2
           restore-keys: |
             vcpkg-openssl-${{ runner.os }}-x64-windows-
 
