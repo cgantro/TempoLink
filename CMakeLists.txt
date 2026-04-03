@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.24)
 # MSVC와 sccache 충돌 방지: 디버그 정보(/Zi) 대신 오브젝트 임베드(/Z7) 포맷 사용
 # 반드시 project() 선언 전에 설정해야 기본 플래그(/Zi)가 안전하게 덮어씌워집니다.
 cmake_policy(SET CMP0141 NEW)
+if(POLICY CMP0207)
+    cmake_policy(SET CMP0207 NEW)
+endif()
 set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
 
 project(TempoLink LANGUAGES C CXX)

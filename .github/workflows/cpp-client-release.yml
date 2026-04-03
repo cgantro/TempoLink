@@ -220,6 +220,8 @@ jobs:
           if (-not $ISCC) { $ISCC = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" }
           $StagingDir = "$PWD\staging-win"
           $OutDir = "$PWD\installer-output"
+          $IssPath = "$PWD\scripts\packaging\TempoLink.iss"
+          if (-not (Test-Path $IssPath)) { throw "Inno script not found: $IssPath" }
           cmake --install out/build/juce-client-release --prefix "$StagingDir" --config Release
           Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
           $sslDll = Get-ChildItem -Path $StagingDir -Filter "libssl*.dll" -File -ErrorAction SilentlyContinue
@@ -229,7 +231,7 @@ jobs:
             Get-ChildItem -Path $StagingDir -File | Select-Object Name,Length | Format-Table -AutoSize
             exit 1
           }
-          & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
+          & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" $IssPath
 
       - name: Package (CPack)
         if: runner.os != 'Windows'

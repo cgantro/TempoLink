@@ -42,6 +42,11 @@ Get-ChildItem "$StagingDir" | Format-Table Name, Length, LastWriteTime
 # 5. Inno Setup 패키징 실행
 Write-Host "`n[3/3] Inno Setup 패키징 실행 중..." -ForegroundColor Yellow
 $OutDir = "$PWD\installer-output"
-& $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
+$IssPath = "$PWD\scripts\packaging\TempoLink.iss"
+if (-not (Test-Path $IssPath)) {
+    Write-Error "Inno script not found: $IssPath"
+    exit 1
+}
+& $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" $IssPath
 
 Write-Host "`n패키징 완료! $OutDir 폴더를 확인하세요." -ForegroundColor Cyan

@@ -17,13 +17,15 @@ SolidCompression=yes
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 
-; 설치 프로그램(.exe) 자체의 아이콘 (프로젝트 루트의 asset 폴더 내 ico 파일 참조)
-SetupIconFile=..\..\asset\logo.ico
+; 커스텀 .ico가 없으면 기본 Inno 아이콘 사용
+; SetupIconFile=..\..\Assets\Logos\logo.png
 ; 제어판의 '프로그램 추가/제거' 목록에 표시될 아이콘 (설치된 앱의 아이콘 사용)
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 ; 라이선스 동의 창 활성화 (동일 폴더 내 License.txt 또는 .rtf 파일 필요)
+#ifexist "License.txt"
 LicenseFile=License.txt
+#endif
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
