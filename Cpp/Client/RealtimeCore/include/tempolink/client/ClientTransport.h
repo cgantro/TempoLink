@@ -40,6 +40,7 @@ class ClientTransport {
   tempolink::net::UdpSocket socket_;
   std::mutex send_mutex_;
   std::array<std::byte, 16384> send_buffer_;
+  std::array<std::byte, 16384> recv_buffer_;
 };
 
 }  // namespace tempolink::client

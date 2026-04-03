@@ -95,12 +95,19 @@ bool ClientTransport::PollPacket(tempolink::net::Packet& packet) {
   }
 
   while (true) {
-    auto datagram = socket_.ReceiveFrom();
-    if (!datagram.has_value()) {
+    const auto receive_result = socket_.ReceiveFrom(recv_buffer_);
+    if (receive_result.status == tempolink::net::SocketStatus::WouldBlock) {
       return false;
     }
+    if (receive_result.status != tempolink::net::SocketStatus::Success) {
+      return false;
+    }
+    if (receive_result.bytes_read == 0) {
+      continue;
+    }
 
-    auto decoded = tempolink::net::DecodePacket(datagram->data);
+    auto decoded = tempolink::net::DecodePacket(
+        std::span<const std::byte>(recv_buffer_.data(), receive_result.bytes_read));
     if (!decoded.has_value()) {
       continue;
     }

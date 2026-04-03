@@ -12,6 +12,10 @@ target_sources(
     src/client/audio/MetronomeProcessor.cpp
     src/client/audio/ReverbProcessor.cpp
     src/client/audio/MultiStreamMixer.cpp
+    src/client/audio/InputGainProcessor.cpp
+    src/client/audio/LevelMeter.cpp
+    src/client/audio/AudioProcessorChain.cpp
+    src/client/audio/AudioDeviceManager.cpp
 )
 
 target_include_directories(
@@ -22,11 +26,6 @@ target_include_directories(
 
 target_link_libraries(tempolink_client_runtime PUBLIC tempolink_common)
 target_compile_features(tempolink_client_runtime PUBLIC cxx_std_20)
-
-if(TEMPOLINK_ENABLE_OPUS)
-  target_link_libraries(tempolink_client_runtime PUBLIC opus)
-  message(STATUS "RealtimeCore: Opus codec support enabled.")
-endif()
 
 if(TEMPOLINK_BUILD_CLIENT)
   add_executable(tempolink_client_console)

@@ -25,6 +25,7 @@ void MetronomeProcessor::Process(std::span<float> pcm, const AudioFormat& format
   }
 
   const float metronome_gain = volume_.load();
+  const int tone = std::clamp(tone_.load(), 0, 2);
   constexpr float kTwoPi = 6.28318530717958647692F;
 
   for (std::size_t sample_index = 0; sample_index < frame_samples;
@@ -32,7 +33,12 @@ void MetronomeProcessor::Process(std::span<float> pcm, const AudioFormat& format
     if (phase_samples_ == 0) {
       const bool accent = (beat_index_ % 4U) == 0U;
       const float accent_gain = accent ? 1.0F : 0.7F;
-      const float frequency_hz = accent ? 1760.0F : 1320.0F;
+      float frequency_hz = accent ? 1760.0F : 1320.0F;
+      if (tone == 1) {
+        frequency_hz = accent ? 1100.0F : 800.0F;
+      } else if (tone == 2) {
+        frequency_hz = accent ? 2100.0F : 1700.0F;
+      }
       const std::size_t click_len =
           static_cast<std::size_t>(format.sample_rate_hz / 90U);
 
@@ -42,7 +48,13 @@ void MetronomeProcessor::Process(std::span<float> pcm, const AudioFormat& format
             static_cast<float>(k) / static_cast<float>(format.sample_rate_hz);
         const float envelope =
             1.0F - (static_cast<float>(k) / static_cast<float>(click_len));
-        const float wave = std::sin(kTwoPi * frequency_hz * t);
+        float wave = std::sin(kTwoPi * frequency_hz * t);
+        if (tone == 1) {
+          wave = wave >= 0.0F ? 1.0F : -1.0F;
+        } else if (tone == 2) {
+          wave = std::sin(kTwoPi * frequency_hz * t) * 0.7F +
+                 std::sin(kTwoPi * (frequency_hz * 2.0F) * t) * 0.3F;
+        }
         const float mixed =
             wave * envelope * accent_gain * metronome_gain * 0.5f;
 
@@ -67,5 +79,7 @@ void MetronomeProcessor::SetBpm(int bpm) { bpm_.store(bpm); }
 int MetronomeProcessor::Bpm() const { return bpm_.load(); }
 void MetronomeProcessor::SetVolume(float volume) { volume_.store(volume); }
 float MetronomeProcessor::Volume() const { return volume_.load(); }
+void MetronomeProcessor::SetTone(int tone) { tone_.store(std::clamp(tone, 0, 2)); }
+int MetronomeProcessor::Tone() const { return tone_.load(); }
 
 }  // namespace tempolink::client::audio

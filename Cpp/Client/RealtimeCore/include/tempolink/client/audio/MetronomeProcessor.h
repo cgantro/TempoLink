@@ -18,11 +18,14 @@ class MetronomeProcessor final : public AudioProcessor {
   int Bpm() const;
   void SetVolume(float volume);
   float Volume() const;
+  void SetTone(int tone);
+  int Tone() const;
 
  private:
   std::atomic_bool enabled_{false};
   std::atomic<int> bpm_{120};
   std::atomic<float> volume_{0.35F};
+  std::atomic<int> tone_{0};
   std::uint64_t phase_samples_ = 0;
   std::uint32_t beat_index_ = 0;
 };
