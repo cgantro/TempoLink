@@ -112,15 +112,25 @@ bool UdpAudioBridgePort::TryReadDawFrame(std::size_t expected_samples,
   (void)channels;
   const std::size_t max_datagram_bytes =
       expected_samples * sizeof(std::int16_t) + 64U;
+  const std::size_t read_capacity =
+      std::min(max_datagram_bytes, rx_datagram_buffer_.size());
+  if (read_capacity == 0U) {
+    return false;
+  }
+
   std::scoped_lock lock(io_mutex_);
-  auto datagram = rx_socket_.ReceiveFrom(max_datagram_bytes);
-  if (!datagram.has_value()) {
+  const auto receive_result =
+      rx_socket_.ReceiveFrom(std::span<std::byte>(rx_datagram_buffer_.data(),
+                                                  read_capacity));
+  if (receive_result.status != tempolink::net::SocketStatus::Success ||
+      receive_result.bytes_read == 0U) {
     return false;
   }
 
   tempolink::bridge::ParsedUdpBridgePacket packet;
   if (!tempolink::bridge::ParseUdpBridgePacket(
-          std::span<const std::byte>(datagram->data.data(), datagram->data.size()),
+          std::span<const std::byte>(rx_datagram_buffer_.data(),
+                                     receive_result.bytes_read),
           packet)) {
     return false;
   }

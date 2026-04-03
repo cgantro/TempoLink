@@ -3,8 +3,7 @@
 #include <string>
 #include <vector>
 
-#include <juce_gui_basics/juce_gui_basics.h>
-
+#include <optional>
 #include "tempolink/juce/model/RoomSummary.h"
 
 enum class ConnectionBadgeState {
@@ -15,10 +14,18 @@ enum class ConnectionBadgeState {
   Failed
 };
 
+struct LobbyRoomFilter {
+  std::string query;
+  std::string tag;
+  std::optional<bool> is_public;
+  std::optional<bool> has_password;
+  std::string mode = "all";
+};
+
 struct ParticipantSummary {
   std::string user_id;
-  juce::String display_name;
-  juce::String part_label;
+  std::string display_name;
+  std::string part_label;
   bool is_self = false;
   bool is_muted = false;
   bool is_recording = false;

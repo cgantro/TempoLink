@@ -2,7 +2,7 @@
 
 namespace tempolink::juceapp::app {
 
-void BindSessionView(SessionView& session_view,
+void BindSessionView(ISessionView& session_view,
                      const SessionBindingsCallbacks& callbacks) {
   session_view.setOnBack(callbacks.on_back);
   session_view.setOnDisconnect(callbacks.on_disconnect);
@@ -12,8 +12,11 @@ void BindSessionView(SessionView& session_view,
   session_view.setOnMetronomeChanged(callbacks.on_metronome_changed);
   session_view.setOnVolumeChanged(callbacks.on_volume_changed);
   session_view.setOnAudioFileToggle(callbacks.on_audio_file_toggle);
+  session_view.setOnAudioFileSeekChanged(callbacks.on_audio_file_seek_changed);
+  session_view.setOnAudioFileLoopChanged(callbacks.on_audio_file_loop_changed);
   session_view.setOnRecordToggle(callbacks.on_record_toggle);
   session_view.setOnBpmChanged(callbacks.on_bpm_changed);
+  session_view.setOnMetronomeToneChanged(callbacks.on_metronome_tone_changed);
   session_view.setOnInputDeviceChanged(callbacks.on_input_device_changed);
   session_view.setOnOutputDeviceChanged(callbacks.on_output_device_changed);
   session_view.setOnOpenAudioSettings(callbacks.on_open_audio_settings);

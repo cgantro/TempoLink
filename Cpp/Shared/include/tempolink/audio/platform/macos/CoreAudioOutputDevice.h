@@ -22,14 +22,14 @@ class CoreAudioOutputDevice final : public IAudioOutputDevice {
 
   void SetOutputVolume(float gain) override;
   float OutputVolume() const override;
- void PlayFrame(std::span<const std::int16_t> pcm) override;
+  void PlayFrame(std::span<const float> pcm) override;
 
  private:
   std::string selected_device_id_;
   std::atomic_bool running_{false};
   std::atomic<float> output_volume_{1.0F};
   std::mutex last_frame_mutex_;
-  std::vector<std::int16_t> last_frame_;
+  std::vector<float> last_frame_;
   AudioPlaybackConfig config_{};
 };
 

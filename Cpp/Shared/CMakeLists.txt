@@ -6,11 +6,11 @@ set(TEMPOLINK_COMMON_SOURCES
   src/audio/NullAudioCodec.cpp
   src/audio/OpusCodec.cpp
   src/net/PacketCodec.cpp
-  src/net/UdpSocket.cpp
 )
 
 if(WIN32)
   list(APPEND TEMPOLINK_COMMON_SOURCES
+    src/net/UdpSocket_win.cpp
     src/audio/factory/AudioInputFactoryWindows.cpp
     src/audio/factory/AudioOutputFactoryWindows.cpp
     src/audio/platform/windows/WASAPIDeviceEnumerator.cpp
@@ -19,6 +19,7 @@ if(WIN32)
   )
 elseif(APPLE)
   list(APPEND TEMPOLINK_COMMON_SOURCES
+    src/net/UdpSocket_posix.cpp
     src/audio/factory/AudioInputFactoryMacOS.cpp
     src/audio/factory/AudioOutputFactoryMacOS.cpp
     src/audio/platform/macos/CoreAudioDeviceEnumerator.cpp
@@ -27,6 +28,7 @@ elseif(APPLE)
   )
 elseif(UNIX)
   list(APPEND TEMPOLINK_COMMON_SOURCES
+    src/net/UdpSocket_posix.cpp
     src/audio/factory/AudioInputFactoryLinux.cpp
     src/audio/factory/AudioOutputFactoryLinux.cpp
     src/audio/platform/linux/ALSAAudioInputDevice.cpp
@@ -34,6 +36,7 @@ elseif(UNIX)
   )
 else()
   list(APPEND TEMPOLINK_COMMON_SOURCES
+    src/net/UdpSocket_posix.cpp
     src/audio/factory/AudioInputFactoryGeneric.cpp
     src/audio/factory/AudioOutputFactoryGeneric.cpp
     src/audio/platform/generic/NullAudioInputDevice.cpp

@@ -7,6 +7,9 @@
 #include <span>
 #include <string>
 
+#include <vector>
+#include <array>
+
 #include "tempolink/net/Packet.h"
 #include "tempolink/net/UdpSocket.h"
 #include "tempolink/config/NetworkConstants.h"
@@ -36,6 +39,8 @@ class ClientTransport {
   std::atomic_bool running_{false};
   tempolink::net::UdpSocket socket_;
   std::mutex send_mutex_;
+  std::array<std::byte, 16384> send_buffer_;
+  std::array<std::byte, 16384> recv_buffer_;
 };
 
 }  // namespace tempolink::client

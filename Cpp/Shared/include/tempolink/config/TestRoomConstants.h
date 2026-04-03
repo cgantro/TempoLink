@@ -4,6 +4,10 @@
 
 #include "tempolink/config/NetworkConstants.h"
 
+
+/**
+ * @brief 이것도 결국엔 서버에서 받아와야한다.
+ */
 namespace tempolink::config {
 
 inline constexpr char kTestRoomCode[] = "TEST00";

@@ -1,7 +1,7 @@
 #include "tempolink/juce/app/ClientAppPresenter.h"
 
 void ClientAppPresenter::wireLoginUiEvents() {
-  login_view_.setOnLoginRequested(
+  views_.login_view.setOnLoginRequested(
       [this](std::string provider) { startOAuthLogin(provider); });
-  login_view_.setOnRefreshProviders([this] { refreshAuthProviders(); });
+  views_.login_view.setOnRefreshProviders([this] { refreshAuthProviders(); });
 }

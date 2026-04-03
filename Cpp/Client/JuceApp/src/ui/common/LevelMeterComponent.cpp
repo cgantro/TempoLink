@@ -1,10 +1,11 @@
 #include "tempolink/juce/ui/common/LevelMeterComponent.h"
+#include <algorithm>
 #include "tempolink/juce/style/UiStyle.h"
 
 namespace tempolink::juceapp::ui::common {
 
 LevelMeterComponent::LevelMeterComponent() {
-  startTimerHz(30);
+  startTimerHz(60);
 }
 
 LevelMeterComponent::~LevelMeterComponent() {
@@ -12,7 +13,7 @@ LevelMeterComponent::~LevelMeterComponent() {
 }
 
 void LevelMeterComponent::setLevel(float new_level) {
-  current_level_ = new_level;
+  current_level_ = std::max(current_level_, juce::jlimit(0.0f, 1.0f, new_level));
   if (new_level > peak_level_) {
     peak_level_ = new_level;
   }
@@ -46,15 +47,18 @@ void LevelMeterComponent::paint(juce::Graphics& g) {
 }
 
 void LevelMeterComponent::timerCallback() {
-  if (falling_level_ < current_level_) {
-    falling_level_ = current_level_;
-  } else {
-    falling_level_ = std::max(0.0f, falling_level_ - 0.05f);
-  }
-  
-  peak_level_ = std::max(0.0f, peak_level_ - 0.01f);
-  current_level_ = std::max(0.0f, current_level_ - 0.1f);
-  
+  // Smooth meter movement to reduce visible flicker:
+  // fast attack, slower release.
+  constexpr float kAttack = 0.45f;
+  constexpr float kRelease = 0.12f;
+  const float coeff = (current_level_ > falling_level_) ? kAttack : kRelease;
+  falling_level_ += (current_level_ - falling_level_) * coeff;
+
+  // Keep a gentle passive decay so the meter drops naturally
+  // when new level updates stop arriving.
+  current_level_ = std::max(0.0f, current_level_ - 0.015f);
+  peak_level_ = std::max(0.0f, peak_level_ - 0.004f);
+
   repaint();
 }
 

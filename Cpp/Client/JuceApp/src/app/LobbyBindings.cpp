@@ -4,8 +4,8 @@
 
 namespace tempolink::juceapp::app {
 
-void BindLobbyViews(LobbyView& lobby_view, MyRoomsView& my_rooms_view,
-                    RoomEntrySettingsView& room_entry_view,
+void BindLobbyViews(ILobbyView& lobby_view, IMyRoomsView& my_rooms_view,
+                    IRoomEntryView& room_entry_view,
                     const LobbyBindingsCallbacks& callbacks) {
   lobby_view.setPreviewHandler(callbacks.on_preview_room);
   lobby_view.setEnterHandler(callbacks.on_enter_room);

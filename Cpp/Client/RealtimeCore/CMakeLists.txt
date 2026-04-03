@@ -9,6 +9,13 @@ target_sources(
     src/client/ClockSyncTracker.cpp
     src/client/EndpointManager.cpp
     src/client/PeerJitterBuffer.cpp
+    src/client/audio/MetronomeProcessor.cpp
+    src/client/audio/ReverbProcessor.cpp
+    src/client/audio/MultiStreamMixer.cpp
+    src/client/audio/InputGainProcessor.cpp
+    src/client/audio/LevelMeter.cpp
+    src/client/audio/AudioProcessorChain.cpp
+    src/client/audio/AudioDeviceManager.cpp
 )
 
 target_include_directories(

@@ -3,40 +3,60 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <mutex>
 #include <memory>
 #include <span>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
-#include "tempolink/audio/IAudioCodec.h"
 #include "tempolink/audio/IAudioInputDevice.h"
 #include "tempolink/audio/IAudioOutputDevice.h"
 #include "tempolink/client/AudioBridgePort.h"
+#include "tempolink/client/audio/AudioDeviceManager.h"
+#include "tempolink/client/audio/AudioProcessorChain.h"
+#include "tempolink/client/audio/InputGainProcessor.h"
+#include "tempolink/client/audio/LevelMeter.h"
+#include "tempolink/client/audio/MetronomeProcessor.h"
+#include "tempolink/client/audio/MultiStreamMixer.h"
+#include "tempolink/client/audio/ReverbProcessor.h"
 
 namespace tempolink::client {
 
+/// Facade that orchestrates device management, processor chain,
+/// level metering, and peer mixing. Each responsibility is delegated
+/// to a focused component. The audio-thread callback uses a lock-free
+/// atomic pointer swap instead of a mutex.
 class AudioPipeline {
  public:
-  using EncodedFrameCallback = std::function<void(std::span<const std::byte>)>;
+  using CapturedPcmCallback = std::function<void(std::span<const float>)>;
 
-  bool Start(EncodedFrameCallback on_frame_encoded);
+  bool Start(CapturedPcmCallback on_pcm_captured);
   void Stop();
   bool IsRunning() const;
 
+  // --- Mute ---
   void SetMuted(bool muted);
   bool IsMuted() const;
+
+  // --- Input Gain (delegated to InputGainProcessor) ---
   void SetInputGain(float gain);
   float InputGain() const;
+
+  // --- Reverb (delegated to ReverbProcessor) ---
   void SetInputReverb(float amount);
   float InputReverb() const;
+
+  // --- Master Volume ---
   void SetVolume(float volume);
   float Volume() const;
+
+  // --- Level Metering (delegated to LevelMeter) ---
   float InputLevel() const;
   float OutputLevel() const;
+
+  // --- Backend info ---
   std::string AudioBackendName() const;
 
+  // --- Device Management (delegated to AudioDeviceManager) ---
   std::vector<std::string> AvailableInputDevices() const;
   std::vector<std::string> AvailableOutputDevices() const;
   bool SetInputDevice(const std::string& device_id);
@@ -48,60 +68,71 @@ class AudioPipeline {
   std::uint16_t FrameSamples() const;
   void SetAudioBridge(std::shared_ptr<AudioBridgePort> audio_bridge);
 
+  // --- Metronome (delegated to MetronomeProcessor) ---
   void SetMetronomeEnabled(bool enabled);
   bool IsMetronomeEnabled() const;
   void SetMetronomeBpm(int bpm);
   int MetronomeBpm() const;
   void SetMetronomeVolume(float volume);
   float MetronomeVolume() const;
+  void SetMetronomeTone(int tone);
+  int MetronomeTone() const;
 
+  // --- Peer Mixing (delegated to MultiStreamMixer) ---
   void SetPeerMonitorVolume(std::uint32_t participant_id, float volume);
-  void SetPeerMonitorPan(std::uint32_t participant_id, float pan);
   float PeerMonitorVolume(std::uint32_t participant_id) const;
+  void SetPeerMonitorPan(std::uint32_t participant_id, float pan);
   float PeerMonitorPan(std::uint32_t participant_id) const;
 
-  void HandleIncomingAudio(std::span<const std::byte> encoded_payload,
-                           std::uint32_t sender_participant_id = 0);
+  void HandleIncomingAudio(std::uint32_t sender_participant_id, std::span<const float> pcm);
 
  private:
-  void OnCapturedFrame(std::span<const std::int16_t> pcm);
-  void ApplySimpleReverb(std::vector<std::int16_t>& pcm);
-  void MixMetronomeClick(std::vector<std::int16_t>& pcm);
+  void OnCapturedFrame(std::span<const float> pcm);
+  void ResizeScratchBuffers();
 
-  struct PeerMonitorMix {
-    float volume = 1.0F;
-    float pan = 0.0F;
-  };
-
+  // Audio format configs
   tempolink::audio::AudioCaptureConfig capture_config_{};
   tempolink::audio::AudioPlaybackConfig playback_config_{};
-  std::unique_ptr<tempolink::audio::IAudioInputDevice> audio_input_;
-  std::unique_ptr<tempolink::audio::IAudioOutputDevice> audio_output_;
-  std::unique_ptr<tempolink::audio::IAudioCodec> audio_encoder_;
-  std::unique_ptr<tempolink::audio::IAudioCodec> audio_decoder_;
-  std::shared_ptr<AudioBridgePort> audio_bridge_;
 
-  mutable std::mutex callback_mutex_;
-  EncodedFrameCallback encoded_frame_callback_;
+  // Device management (extracted)
+  audio::AudioDeviceManager device_manager_;
+  std::shared_ptr<AudioBridgePort> audio_bridge_;
+  std::atomic<AudioBridgePort*> audio_bridge_ptr_{nullptr};
+  std::vector<std::shared_ptr<AudioBridgePort>> retired_audio_bridges_;
+
+  // Processor chain (processes capture frames in order)
+  audio::InputGainProcessor input_gain_processor_;
+  audio::ReverbProcessor reverb_processor_;
+  audio::MetronomeProcessor metronome_processor_;
+  audio::MetronomeProcessor local_metronome_processor_;
+  audio::AudioProcessorChain capture_chain_;
+
+  // Peer mixing
+  audio::MultiStreamMixer peer_mixer_;
+
+  // Level meters
+  audio::LevelMeter input_meter_;
+  audio::LevelMeter output_meter_;
+
+  // State
   std::atomic_bool running_{false};
   std::atomic_bool muted_{false};
-  std::atomic<float> input_gain_{1.0F};
-  std::atomic<float> input_reverb_{0.0F};
   std::atomic<float> volume_{1.0F};
-  std::atomic<float> input_level_{0.0F};
-  std::atomic<float> output_level_{0.0F};
-  std::string selected_input_device_;
-  std::string selected_output_device_;
 
-  std::atomic_bool metronome_enabled_{false};
-  std::atomic_int metronome_bpm_{120};
-  std::atomic<float> metronome_volume_{0.35F};
-  std::uint64_t metronome_phase_samples_ = 0;
-  std::uint32_t metronome_beat_index_ = 0;
-  std::vector<std::int16_t> reverb_delay_line_;
-  std::size_t reverb_write_index_ = 0;
-  mutable std::mutex peer_mix_mutex_;
-  std::unordered_map<std::uint32_t, PeerMonitorMix> peer_monitor_mix_;
+  /// Lock-free callback: audio thread reads via atomic load, main thread
+  /// swaps via atomic exchange. shared_ptr is used so the old callback
+  /// instance is destroyed only after the audio thread is done with it.
+  using CallbackPtr = std::shared_ptr<CapturedPcmCallback>;
+  std::atomic<CapturedPcmCallback*> active_callback_{nullptr};
+  CallbackPtr callback_holder_;  // prevents premature destruction
+
+  // Reused scratch buffers to avoid per-frame heap allocations on hot paths.
+  std::vector<float> incoming_mix_buffer_;
+  std::vector<std::int16_t> incoming_pcm16_buffer_;
+  std::vector<float> capture_processed_buffer_;
+  std::vector<float> capture_silence_buffer_;
+  std::vector<std::int16_t> capture_pcm16_buffer_;
+  std::vector<float> metronome_monitor_buffer_;
 };
 
 }  // namespace tempolink::client

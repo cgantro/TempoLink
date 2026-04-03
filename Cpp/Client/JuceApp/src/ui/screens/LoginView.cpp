@@ -71,8 +71,8 @@ void LoginView::setProviders(const std::vector<AuthProviderInfo>& providers) {
   google_login_button_.setEnabled(!busy_ && google_enabled_);
 }
 
-void LoginView::setStatusText(const juce::String& status_text) {
-  status_label_.setText(status_text, juce::dontSendNotification);
+void LoginView::setStatusText(const std::string& status_text) {
+  status_label_.setText(juce::String(status_text), juce::dontSendNotification);
 }
 
 void LoginView::setBusy(bool busy) {

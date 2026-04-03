@@ -101,7 +101,7 @@ void ParticipantStripComponent::updateTheme() {
 void ParticipantStripComponent::setParticipant(const ParticipantSummary& participant) {
   participant_ = participant;
   name_label_.setText(participant_.display_name, juce::dontSendNotification);
-  juce::String part = participant_.part_label.isNotEmpty() ? participant_.part_label : juce::String("Part -");
+  juce::String part = !participant_.part_label.empty() ? participant_.part_label : "Part -";
   part_label_.setText(part, juce::dontSendNotification);
   juce::String state = participant_.is_self ? "YOU" : "PEER";
   if (participant_.is_muted) state += " (MUTED)";

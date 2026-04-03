@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <optional>
 
 #include "tempolink/bridge/UdpBridgeProtocol.h"
 
@@ -253,27 +252,38 @@ bool VstBridgeAudioProcessor::receiveClientOutput(
     return false;
   }
 
-  std::optional<tempolink::net::Datagram> latest;
   const std::size_t max_datagram_bytes =
       expected_samples * sizeof(std::int16_t) + 64U;
+  const std::size_t read_capacity =
+      std::min(max_datagram_bytes, rx_datagram_buffer_.size());
+  if (read_capacity == 0U) {
+    return false;
+  }
+
+  std::size_t latest_bytes = 0;
   {
     std::scoped_lock lock(io_mutex_);
     while (true) {
-      auto maybe = rx_socket_.ReceiveFrom(max_datagram_bytes);
-      if (!maybe.has_value()) {
+      const auto receive_result =
+          rx_socket_.ReceiveFrom(std::span<std::byte>(rx_datagram_buffer_.data(),
+                                                      read_capacity));
+      if (receive_result.status == tempolink::net::SocketStatus::WouldBlock) {
         break;
       }
-      latest = std::move(maybe);
+      if (receive_result.status != tempolink::net::SocketStatus::Success) {
+        break;
+      }
+      latest_bytes = receive_result.bytes_read;
     }
   }
 
-  if (!latest.has_value()) {
+  if (latest_bytes == 0U) {
     return false;
   }
 
   tempolink::bridge::ParsedUdpBridgePacket packet;
   if (!tempolink::bridge::ParseUdpBridgePacket(
-          std::span<const std::byte>(latest->data.data(), latest->data.size()), packet)) {
+          std::span<const std::byte>(rx_datagram_buffer_.data(), latest_bytes), packet)) {
     return false;
   }
   if (packet.header.type != tempolink::bridge::UdpBridgePacketType::kClientToDaw) {

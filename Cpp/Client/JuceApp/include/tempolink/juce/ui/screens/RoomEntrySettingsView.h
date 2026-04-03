@@ -10,33 +10,29 @@
 #include "tempolink/juce/ui/common/PanelCard.h"
 #include "tempolink/juce/ui/models/UiModels.h"
 
-class RoomEntrySettingsView final : public tempolink::juceapp::style::ThemeableComponent {
- public:
-  struct EntrySelection {
-    std::string room_code;
-    std::string part_label;
-    std::string input_device;
-    std::string output_device;
-  };
+#include "tempolink/juce/ui/interfaces/IRoomEntryView.h"
 
+class RoomEntrySettingsView final : public tempolink::juceapp::style::ThemeableComponent,
+                                    public IRoomEntryView {
+ public:
   RoomEntrySettingsView();
   void updateTheme() override;
 
-  void setRoom(const RoomSummary& room);
-  void setStatusText(const juce::String& status_text);
+  void setRoom(const RoomSummary& room) override;
+  void setStatusText(const std::string& status_text) override;
   void setInputDevices(const std::vector<std::string>& devices,
-                       const std::string& selected_device);
+                       const std::string& selected_device) override;
   void setOutputDevices(const std::vector<std::string>& devices,
-                        const std::string& selected_device);
-  void setSelectedPart(const std::string& part_label);
+                        const std::string& selected_device) override;
+  void setSelectedPart(const std::string& part_label) override;
   EntrySelection currentSelection() const;
 
-  void setOnBack(std::function<void()> on_back);
-  void setOnJoin(std::function<void(EntrySelection)> on_join);
-  void setOnPartChanged(std::function<void(std::string)> on_part_changed);
-  void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed);
-  void setOnOutputDeviceChanged(std::function<void(std::string)> on_output_changed);
-  void setOnOpenAudioSettings(std::function<void()> on_open_audio_settings);
+  void setOnBack(std::function<void()> on_back) override;
+  void setOnJoin(std::function<void(EntrySelection)> on_join) override;
+  void setOnPartChanged(std::function<void(std::string)> on_part_changed) override;
+  void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed) override;
+  void setOnOutputDeviceChanged(std::function<void(std::string)> on_output_changed) override;
+  void setOnOpenAudioSettings(std::function<void()> on_open_audio_settings) override;
 
   void resized() override;
   void paint(juce::Graphics& g) override;

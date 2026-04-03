@@ -24,14 +24,13 @@ std::vector<ParticipantSummary> ParticipantRosterBuilder::Build(
     ParticipantSummary summary;
     summary.user_id = id;
     summary.is_self = id == current_user_id;
-    summary.part_label = summary.is_self ? juce::String("My Part")
-                                         : juce::String("Session Part");
+    summary.part_label = summary.is_self ? "My Part" : "Session Part";
     summary.is_muted = summary.is_self ? self_muted : false;
     summary.level = 0.0F;
     summary.latency_ms = 0;
     summary.packet_loss_percent = 0.0F;
     summary.connection_state = ConnectionBadgeState::Unknown;
-    summary.display_name = summary.is_self ? juce::String("You") : juce::String(id);
+    summary.display_name = summary.is_self ? "You" : id;
     participants.push_back(std::move(summary));
   }
 

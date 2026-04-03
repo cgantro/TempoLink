@@ -59,7 +59,7 @@ float CoreAudioOutputDevice::OutputVolume() const {
   return output_volume_.load();
 }
 
-void CoreAudioOutputDevice::PlayFrame(std::span<const std::int16_t> pcm) {
+void CoreAudioOutputDevice::PlayFrame(std::span<const float> pcm) {
   if (!running_.load()) {
     return;
   }

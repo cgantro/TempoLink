@@ -232,16 +232,15 @@ void ContentController::runSettingsInputTest() {
         std::max<int>(16, static_cast<int>(frame_samples)));
 
     const bool started =
-        input->Start(capture_config, [&peak](std::span<const std::int16_t> pcm) {
-          std::int32_t max_abs = 0;
+        input->Start(capture_config, [&peak](std::span<const float> pcm) {
+          float max_abs = 0.0f;
           for (const auto sample : pcm) {
-            const auto abs_sample = std::abs(static_cast<std::int32_t>(sample));
+            const auto abs_sample = std::abs(sample);
             if (abs_sample > max_abs) {
               max_abs = abs_sample;
             }
           }
-          const float normalized =
-              std::clamp(static_cast<float>(max_abs) / 32768.0F, 0.0F, 1.0F);
+          const float normalized = std::clamp(max_abs, 0.0F, 1.0F);
           float current = peak.load(std::memory_order_relaxed);
           while (normalized > current &&
                  !peak.compare_exchange_weak(current, normalized,
@@ -345,21 +344,20 @@ void ContentController::runSettingsOutputTest() {
         2.0F * juce::MathConstants<float>::pi * kToneHz /
         static_cast<float>(playback_config.sample_rate_hz);
     float phase = 0.0F;
-    std::vector<std::int16_t> frame(playback_config.frame_samples, 0);
+    std::vector<float> frame(playback_config.frame_samples, 0.0f);
     const auto sleep_time = std::chrono::microseconds(
         static_cast<std::int64_t>(1000000LL * playback_config.frame_samples /
-                                  std::max<std::uint32_t>(1, playback_config.sample_rate_hz)));
+                                   std::max<std::uint32_t>(1, playback_config.sample_rate_hz)));
 
     for (int n = 0; n < kToneFrames; ++n) {
       for (auto& sample : frame) {
-        sample = static_cast<std::int16_t>(
-            std::round(std::sin(phase) * kToneAmp * 32767.0F));
+        sample = std::sin(phase) * kToneAmp;
         phase += phase_step;
         if (phase > 2.0F * juce::MathConstants<float>::pi) {
           phase -= 2.0F * juce::MathConstants<float>::pi;
         }
       }
-      output->PlayFrame(std::span<const std::int16_t>(frame.data(), frame.size()));
+      output->PlayFrame(std::span<const float>(frame.data(), frame.size()));
       std::this_thread::sleep_for(sleep_time);
     }
 

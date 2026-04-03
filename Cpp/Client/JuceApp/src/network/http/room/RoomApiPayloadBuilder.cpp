@@ -55,12 +55,36 @@ juce::String BuildUserActionBody(const std::string& user_id) {
 
 juce::String BuildCreateRoomBody(const std::string& host_user_id,
                                  int max_participants) {
-  const int clamped_max = juce::jlimit(2, 6, max_participants <= 0 ? 6 : max_participants);
-  const json payload = {
+  RoomCreatePayload payload;
+  payload.max_participants = max_participants;
+  return BuildCreateRoomBody(host_user_id, payload);
+}
+
+juce::String BuildCreateRoomBody(const std::string& host_user_id,
+                                 const RoomCreatePayload& payload) {
+  const int clamped_max =
+      juce::jlimit(2, 6, payload.max_participants <= 0 ? 6 : payload.max_participants);
+  json tags = json::array();
+  for (const auto& tag : payload.tags) {
+    const auto trimmed = tag.trim();
+    if (trimmed.isNotEmpty()) {
+      tags.push_back(trimmed.toStdString());
+    }
+  }
+  const auto room_name = payload.name.trim();
+  const auto description = payload.description.trim();
+  const json root = {
       {"hostUserId", host_user_id},
       {"maxParticipants", clamped_max},
+      {"name", room_name.toStdString()},
+      {"description", description.toStdString()},
+      {"tags", tags},
+      {"isPublic", payload.is_public},
+      {"hasPassword", payload.has_password},
+      {"password", payload.has_password ? payload.password.trim().toStdString() : ""},
+      {"roomTimeLimitMinutes", juce::jmax(0, payload.room_time_limit_minutes)},
   };
-  return juce::String(payload.dump());
+  return juce::String(root.dump());
 }
 
 juce::String BuildUpdateRoomBody(const std::string& host_user_id,
@@ -94,4 +118,3 @@ juce::String BuildDeleteRoomBody(const std::string& host_user_id) {
 }
 
 }  // namespace tempolink::juceapp::network::roomapi
-

@@ -87,7 +87,7 @@ void AuthController::RefreshAuthProviders() {
         }
         login_view_.setBusy(false);
         if (!ok) {
-          login_view_.setStatusText("Failed to load providers: " + error_text);
+          login_view_.setStatusText("Failed to load providers: " + error_text.toStdString());
           login_view_.setProviders({});
           return;
         }
@@ -112,7 +112,7 @@ void AuthController::StartOAuthLogin(const std::string& provider) {
     return;
   }
 
-  login_view_.setStatusText("Opening browser for " + juce::String(provider) +
+  login_view_.setStatusText("Opening browser for " + provider +
                             " login...");
   const auto start_url = auth_api_.buildStartUrl(provider, oauth_redirect_uri_);
   tempolink::juceapp::logging::Info(
@@ -146,8 +146,7 @@ void AuthController::HandleOAuthCallback(const std::string& ticket,
 
   if (!error.empty()) {
     login_view_.setBusy(false);
-    login_view_.setStatusText("Login failed (" + juce::String(provider) +
-                              "): " + juce::String(message));
+    login_view_.setStatusText("Login failed (" + provider + "): " + message);
     return;
   }
 
@@ -168,7 +167,7 @@ void AuthController::HandleOAuthCallback(const std::string& ticket,
         }
         login_view_.setBusy(false);
         if (!ok) {
-          login_view_.setStatusText("Ticket exchange failed: " + error_text);
+          login_view_.setStatusText("Ticket exchange failed: " + error_text.toStdString());
           return;
         }
         if (on_auth_ready_) {

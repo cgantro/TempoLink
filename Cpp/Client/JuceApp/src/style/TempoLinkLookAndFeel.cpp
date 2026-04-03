@@ -51,10 +51,10 @@ void TempoLinkLookAndFeel::themeChanged() {
 }
 
 void TempoLinkLookAndFeel::drawButtonBackground(juce::Graphics& g,
-                                               juce::Button& button,
-                                               const juce::Colour& background_colour,
-                                               bool should_draw_button_as_highlighted,
-                                               bool should_draw_button_as_down) {
+                                                juce::Button& button,
+                                                const juce::Colour& background_colour,
+                                                bool should_draw_button_as_highlighted,
+                                                bool should_draw_button_as_down) {
   auto corner_size = 10.0f;
   auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
 

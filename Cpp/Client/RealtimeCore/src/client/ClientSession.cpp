@@ -2,7 +2,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstring>
 #include <utility>
+
+#include "tempolink/audio/AudioCodecFactory.h"
 
 namespace tempolink::client {
 namespace {
@@ -21,6 +25,13 @@ std::uint64_t NowMicros() {
   const auto now = std::chrono::steady_clock::now().time_since_epoch();
   return static_cast<std::uint64_t>(
       std::chrono::duration_cast<std::chrono::microseconds>(now).count());
+}
+
+float SmoothLevel(float current, float target) {
+  if (target > current) {
+    return target;  // Fast attack
+  }
+  return current * 0.9F + target * 0.1F;  // Slow decay
 }
 
 }  // namespace
@@ -47,15 +58,29 @@ bool ClientSession::Start(const Config& config) {
     return false;
   }
 
+  // Create encoder codec via factory (OpusCodec if available, else NullAudioCodec)
+  encoder_codec_ = tempolink::audio::CreateDefaultAudioCodec();
+  const std::uint32_t sample_rate = audio_pipeline_.SampleRateHz();
+  const std::uint16_t frame_samples = audio_pipeline_.FrameSamples();
+  encoder_codec_->Initialize(sample_rate, 2, frame_samples);
+  encoder_codec_->SetBitrate(64000);
+
   const bool audio_started = audio_pipeline_.Start(
-      [this](std::span<const std::byte> encoded_frame) {
+      [this](std::span<const float> pcm) {
         if (!running_.load(std::memory_order_acquire) ||
             !joined_.load(std::memory_order_acquire)) {
           return;
         }
-        SendPacket(tempolink::net::PacketType::kAudio, encoded_frame);
+        if (encoder_codec_) {
+          auto encoded = encoder_codec_->Encode(pcm);
+          if (!encoded.empty()) {
+            SendPacket(tempolink::net::PacketType::kAudio,
+                       std::span<const std::byte>(encoded.data(), encoded.size()));
+          }
+        }
       });
   if (!audio_started) {
+    encoder_codec_.reset();
     transport_.Stop();
     return false;
   }
@@ -79,6 +104,8 @@ void ClientSession::Stop() {
   stats_.connected = false;
   peer_jitter_buffers_.clear();
   peer_levels_.clear();
+  decoder_codecs_.clear();
+  encoder_codec_.reset();
   audio_pipeline_.Stop();
   transport_.Stop();
 }
@@ -153,20 +180,34 @@ bool ClientSession::Tick() {
         packet.header.sender_id != config_.participant_id) {
       auto& jitter_buffer = peer_jitter_buffers_[packet.header.sender_id];
       jitter_buffer.Push(packet.header.sequence, packet.header.timestamp_us,
-                         packet.payload);
-      auto& peer_level = peer_levels_[packet.header.sender_id];
-      const float boost = std::clamp(
-          static_cast<float>(packet.payload.size()) / 480.0F, 0.04F, 0.35F);
-      peer_level = std::clamp(peer_level + boost, 0.0F, 1.0F);
+                         std::move(packet.payload));
     }
   }
 
+  // Decode and mix peer audio
   constexpr std::size_t kTargetJitterDepthPackets = 3;
   for (auto& [sender_id, jitter_buffer] : peer_jitter_buffers_) {
-    (void)sender_id;
     const auto ready_frames = jitter_buffer.PopReady(kTargetJitterDepthPackets);
     for (const auto& frame : ready_frames) {
-      audio_pipeline_.HandleIncomingAudio(frame.payload, sender_id);
+      // Get or create decoder for this peer
+      auto& decoder = decoder_codecs_[sender_id];
+      if (!decoder) {
+        decoder = tempolink::audio::CreateDefaultAudioCodec();
+        decoder->Initialize(audio_pipeline_.SampleRateHz(), 2,
+                            audio_pipeline_.FrameSamples());
+      }
+
+      auto decoded_pcm = decoder->Decode(frame.payload);
+      if (!decoded_pcm.empty()) {
+        audio_pipeline_.HandleIncomingAudio(sender_id, decoded_pcm);
+
+        // Update level tracking for UI
+        float current_peak = 0.0f;
+        for (float s : decoded_pcm) {
+          current_peak = std::max(current_peak, std::abs(s));
+        }
+        peer_levels_[sender_id] = SmoothLevel(peer_levels_[sender_id], current_peak);
+      }
     }
   }
 
@@ -305,6 +346,10 @@ void ClientSession::SetMetronomeVolume(float volume) {
 float ClientSession::MetronomeVolume() const {
   return audio_pipeline_.MetronomeVolume();
 }
+
+void ClientSession::SetMetronomeTone(int tone) { audio_pipeline_.SetMetronomeTone(tone); }
+
+int ClientSession::MetronomeTone() const { return audio_pipeline_.MetronomeTone(); }
 
 const ClientSession::Stats& ClientSession::GetStats() const { return stats_; }
 

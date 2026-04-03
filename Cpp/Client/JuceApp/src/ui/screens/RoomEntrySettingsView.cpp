@@ -110,8 +110,8 @@ void RoomEntrySettingsView::setRoom(const RoomSummary& room) {
                       juce::dontSendNotification);
 }
 
-void RoomEntrySettingsView::setStatusText(const juce::String& status_text) {
-  status_label_.setText(status_text, juce::dontSendNotification);
+void RoomEntrySettingsView::setStatusText(const std::string& status_text) {
+  status_label_.setText(juce::String(status_text), juce::dontSendNotification);
 }
 
 void RoomEntrySettingsView::setInputDevices(const std::vector<std::string>& devices,

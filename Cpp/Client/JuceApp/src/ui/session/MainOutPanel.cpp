@@ -22,6 +22,12 @@ MainOutPanel::MainOutPanel() {
   body_.addAndMakeVisible(master_slider_);
 
   body_.addAndMakeVisible(audio_file_button_);
+  audio_file_seek_slider_.setSliderStyle(juce::Slider::LinearHorizontal);
+  audio_file_seek_slider_.setRange(0.0, 1.0, 0.001);
+  audio_file_seek_slider_.setValue(0.0);
+  audio_file_seek_slider_.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+  body_.addAndMakeVisible(audio_file_seek_slider_);
+  body_.addAndMakeVisible(audio_file_loop_toggle_);
   body_.addAndMakeVisible(record_button_);
   body_.addAndMakeVisible(disconnect_button_);
 
@@ -36,6 +42,17 @@ MainOutPanel::MainOutPanel() {
                                                          : "Audio File");
     if (!suppress_callbacks_ && on_audio_file_toggle_) {
       on_audio_file_toggle_(audio_file_active_);
+    }
+  };
+  audio_file_seek_slider_.onValueChange = [this] {
+    if (!suppress_callbacks_ && on_audio_seek_changed_) {
+      on_audio_seek_changed_(static_cast<float>(audio_file_seek_slider_.getValue()));
+    }
+  };
+  audio_file_loop_toggle_.onClick = [this] {
+    audio_file_loop_enabled_ = audio_file_loop_toggle_.getToggleState();
+    if (!suppress_callbacks_ && on_audio_loop_changed_) {
+      on_audio_loop_changed_(audio_file_loop_enabled_);
     }
   };
   record_button_.onClick = [this] {
@@ -68,6 +85,12 @@ void MainOutPanel::updateTheme() {
   update_btn(audio_file_button_);
   update_btn(record_button_);
   update_btn(disconnect_button_);
+  audio_file_loop_toggle_.setColour(juce::ToggleButton::textColourId,
+                                    tempolink::juceapp::style::TextPrimary());
+  audio_file_seek_slider_.setColour(juce::Slider::thumbColourId,
+                                    tempolink::juceapp::style::AccentCyan());
+  audio_file_seek_slider_.setColour(juce::Slider::trackColourId,
+                                    tempolink::juceapp::style::PanelBorder());
 
   repaint();
 }
@@ -90,6 +113,23 @@ void MainOutPanel::setAudioFileActive(bool active) {
   audio_file_active_ = active;
   audio_file_button_.setButtonText(audio_file_active_ ? "Audio Stop"
                                                        : "Audio File");
+  if (!audio_file_active_) {
+    audio_file_seek_slider_.setValue(0.0, juce::dontSendNotification);
+  }
+  suppress_callbacks_ = false;
+}
+
+void MainOutPanel::setAudioFilePlaybackPosition(float normalized_position) {
+  suppress_callbacks_ = true;
+  audio_file_seek_slider_.setValue(std::clamp(normalized_position, 0.0F, 1.0F),
+                                   juce::dontSendNotification);
+  suppress_callbacks_ = false;
+}
+
+void MainOutPanel::setAudioFileLoopEnabled(bool enabled) {
+  suppress_callbacks_ = true;
+  audio_file_loop_enabled_ = enabled;
+  audio_file_loop_toggle_.setToggleState(enabled, juce::dontSendNotification);
   suppress_callbacks_ = false;
 }
 
@@ -100,6 +140,16 @@ void MainOutPanel::setOnVolumeChanged(std::function<void(float)> on_volume_chang
 void MainOutPanel::setOnAudioFileToggle(
     std::function<void(bool)> on_audio_file_toggle) {
   on_audio_file_toggle_ = std::move(on_audio_file_toggle);
+}
+
+void MainOutPanel::setOnAudioFileSeekChanged(
+    std::function<void(float)> on_audio_seek_changed) {
+  on_audio_seek_changed_ = std::move(on_audio_seek_changed);
+}
+
+void MainOutPanel::setOnAudioFileLoopChanged(
+    std::function<void(bool)> on_audio_loop_changed) {
+  on_audio_loop_changed_ = std::move(on_audio_loop_changed);
 }
 
 void MainOutPanel::setOnRecordToggle(std::function<void(bool)> on_record_toggle) {
@@ -115,9 +165,13 @@ void MainOutPanel::resized() {
   auto area = body_.getLocalBounds();
   master_label_.setBounds(area.removeFromTop(20));
   master_slider_.setBounds(area.removeFromTop(30));
-  area.removeFromTop(10);
+  area.removeFromTop(6);
+  audio_file_seek_slider_.setBounds(area.removeFromTop(20));
+  area.removeFromTop(4);
   auto row = area.removeFromTop(30);
   audio_file_button_.setBounds(row.removeFromLeft(110));
+  row.removeFromLeft(8);
+  audio_file_loop_toggle_.setBounds(row.removeFromLeft(76));
   row.removeFromLeft(8);
   record_button_.setBounds(row.removeFromLeft(100));
   row.removeFromLeft(8);

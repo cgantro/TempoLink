@@ -7,24 +7,27 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "tempolink/juce/style/ThemeableComponent.h"
+#include "tempolink/juce/ui/interfaces/IMyRoomsView.h"
+
 #include "tempolink/juce/ui/components/RoomCardComponent.h"
 
-class MyRoomsView final : public tempolink::juceapp::style::ThemeableComponent {
+class MyRoomsView final : public tempolink::juceapp::style::ThemeableComponent,
+                          public IMyRoomsView {
  public:
   MyRoomsView();
   void updateTheme() override;
 
-  void setRooms(const std::vector<RoomSummary>& rooms);
-  void setStatusText(const juce::String& status_text);
+  void setRooms(const std::vector<RoomSummary>& rooms) override;
+  void setStatusText(const std::string& status_text) override;
 
-  void setPreviewHandler(std::function<void(std::string)> on_preview_room);
-  void setEnterHandler(std::function<void(std::string)> on_enter_room);
-  void setEditHandler(std::function<void(std::string)> on_edit_room);
-  void setDeleteHandler(std::function<void(std::string)> on_delete_room);
-  void setShareHandler(std::function<void(std::string)> on_share_room);
-  void setCreateHandler(std::function<void(int)> on_create_room);
-  void setRefreshHandler(std::function<void()> on_refresh);
-  void setBackHandler(std::function<void()> on_back);
+  void setPreviewHandler(std::function<void(std::string)> on_preview_room) override;
+  void setEnterHandler(std::function<void(std::string)> on_enter_room) override;
+  void setEditHandler(std::function<void(std::string)> on_edit_room) override;
+  void setDeleteHandler(std::function<void(std::string)> on_delete_room) override;
+  void setShareHandler(std::function<void(std::string)> on_share_room) override;
+  void setCreateHandler(std::function<void(const RoomCreatePayload&)> on_create_room) override;
+  void setRefreshHandler(std::function<void()> on_refresh) override;
+  void setBackHandler(std::function<void()> on_back) override;
 
   void resized() override;
   void paint(juce::Graphics& g) override;
@@ -40,7 +43,7 @@ class MyRoomsView final : public tempolink::juceapp::style::ThemeableComponent {
   std::function<void(std::string)> on_edit_room_;
   std::function<void(std::string)> on_delete_room_;
   std::function<void(std::string)> on_share_room_;
-  std::function<void(int)> on_create_room_;
+  std::function<void(const RoomCreatePayload&)> on_create_room_;
   std::function<void()> on_refresh_;
   std::function<void()> on_back_;
 

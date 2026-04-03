@@ -1,6 +1,8 @@
 #include "tempolink/juce/app/session/SessionPresenceController.h"
 
 #include <chrono>
+#include <functional>
+#include <unordered_map>
 #include <utility>
 
 #include <juce_core/juce_core.h>
@@ -8,12 +10,37 @@
 #include "tempolink/juce/app/ParticipantRosterBuilder.h"
 #include "tempolink/juce/app/SessionModelSupport.h"
 
+// ---------------------------------------------------------------------------
+// Event dispatch table type
+// ---------------------------------------------------------------------------
+namespace {
+
+struct EventContext {
+  SessionPresenceController& self;
+  const std::string& current_user_id;
+  const std::string& selected_part_label;
+  const SignalingClient::Event& event;
+};
+
+using EventHandler = std::function<void(EventContext& ctx)>;
+
+}  // namespace
+
+// ---------------------------------------------------------------------------
+// Construction / reset
+// ---------------------------------------------------------------------------
+
 SessionPresenceController::SessionPresenceController(
-    SessionView& session_view, tempolink::client::ClientSession& session,
+    ISessionView& session_view, tempolink::client::ClientSession& session,
     SignalingClient& signaling_client)
     : session_view_(session_view),
       session_(session),
-      signaling_client_(signaling_client) {}
+      signaling_client_(signaling_client) {
+  // Original implementation had session_view_.setSignalingClient(signaling_client_);
+  // but a pure interface shouldn't know about concrete SignalingClient.
+  // We'll move that responsibility to the Coordinator or keep it if the interface allows.
+  // For now, ISessionView doesn't have it, so we skip it here.
+}
 
 void SessionPresenceController::reset() {
   participants_.clear();
@@ -23,6 +50,10 @@ void SessionPresenceController::reset() {
   last_device_refresh_tick_ = std::chrono::steady_clock::time_point::min();
   session_view_.setParticipants(participants_);
 }
+
+// ---------------------------------------------------------------------------
+// Participant management
+// ---------------------------------------------------------------------------
 
 void SessionPresenceController::initializeParticipants(
     const std::vector<std::string>& user_ids, const std::string& current_user_id,
@@ -65,6 +96,10 @@ void SessionPresenceController::updateParticipantMonitorPan(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Device / view refresh
+// ---------------------------------------------------------------------------
+
 void SessionPresenceController::refreshAudioDevices(bool session_active) {
   if (!session_active) {
     return;
@@ -97,12 +132,16 @@ void SessionPresenceController::refreshViewState(bool session_active,
   session_view_.setInputLevel(session_.InputLevel());
   tempolink::juceapp::app::RefreshSessionStatusView(
       session_view_, active_room_code, stats, session_.AudioBackendName(),
-      signaling_connected, participants_.size(), peer_latency_ms_,
+      signaling_connected, static_cast<int>(participants_.size()), peer_latency_ms_,
       ice_config_loaded, ice_config);
   tempolink::juceapp::app::RefreshParticipantLevels(
       participants_, session_view_, session_, stats, signaling_connected,
       peer_latency_ms_, ice_config_loaded, ice_config);
 }
+
+// ---------------------------------------------------------------------------
+// Peer ping
+// ---------------------------------------------------------------------------
 
 void SessionPresenceController::sendPeerPings(bool session_active) {
   if (!session_active || !signaling_client_.isConnected()) {
@@ -138,6 +177,10 @@ bool SessionPresenceController::sendReconnectProbe(const std::string& user_id,
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Signaling event dispatch — dispatch table replaces if-else chain
+// ---------------------------------------------------------------------------
+
 void SessionPresenceController::handleSignalingEvent(
     bool session_active, const std::string& active_room_code,
     const std::string& current_user_id, const std::string& selected_part_label,
@@ -149,57 +192,64 @@ void SessionPresenceController::handleSignalingEvent(
     return;
   }
 
-  if (event.type == SignalingClient::Event::Type::RoomJoined) {
-    rebuildParticipantsFromUserIds(event.participants, current_user_id,
-                                   selected_part_label, session_.IsMuted());
-    return;
-  }
+  using Type = SignalingClient::Event::Type;
 
-  if (event.type == SignalingClient::Event::Type::PeerJoined &&
-      !event.user_id.empty()) {
-    rebuildParticipantsFromUserIds(
-        ParticipantRosterBuilder::WithJoined(participants_, event.user_id),
-        current_user_id, selected_part_label, session_.IsMuted());
-    return;
-  }
+  // Static dispatch table — maps event type to handler logic.
+  static const std::unordered_map<Type, EventHandler> dispatch = {
+      {Type::RoomJoined, [](EventContext& ctx) {
+        ctx.self.rebuildParticipantsFromUserIds(
+            ctx.event.participants, ctx.current_user_id,
+            ctx.selected_part_label, ctx.self.session_.IsMuted());
+      }},
+      {Type::PeerJoined, [](EventContext& ctx) {
+        if (ctx.event.user_id.empty()) return;
+        ctx.self.rebuildParticipantsFromUserIds(
+            ParticipantRosterBuilder::WithJoined(ctx.self.participants_, ctx.event.user_id),
+            ctx.current_user_id, ctx.selected_part_label, ctx.self.session_.IsMuted());
+      }},
+      {Type::PeerLeft, [](EventContext& ctx) {
+        if (ctx.event.user_id.empty()) return;
+        ctx.self.peer_latency_ms_.erase(ctx.event.user_id);
+        ctx.self.peer_ping_last_sent_ms_.erase(ctx.event.user_id);
+        ctx.self.rebuildParticipantsFromUserIds(
+            ParticipantRosterBuilder::WithoutUser(
+                ctx.self.participants_, ctx.event.user_id, ctx.current_user_id),
+            ctx.current_user_id, ctx.selected_part_label, ctx.self.session_.IsMuted());
+      }},
+      {Type::PeerPing, [](EventContext& ctx) {
+        if (!ctx.event.from_user_id.empty() && ctx.event.sent_at_ms > 0) {
+          ctx.self.signaling_client_.sendPeerPong(ctx.event.from_user_id, ctx.event.sent_at_ms);
+        }
+      }},
+      {Type::PeerPong, [](EventContext& ctx) {
+        if (!ctx.event.from_user_id.empty() && ctx.event.sent_at_ms > 0) {
+          const std::uint64_t now_ms = SessionPresenceController::nowSteadyMs();
+          if (now_ms >= ctx.event.sent_at_ms) {
+            const auto rtt_ms = static_cast<int>(now_ms - ctx.event.sent_at_ms);
+            ctx.self.peer_latency_ms_[ctx.event.from_user_id] = juce::jlimit(0, 5000, rtt_ms);
+          }
+        }
+      }},
+      {Type::ChatMessage, [](EventContext& ctx) {
+        ctx.self.session_view_.addChatMessage(ctx.event.from_user_id, ctx.event.message.toStdString(), false);
+      }},
+      {Type::Error, [](EventContext& ctx) {
+        ctx.self.session_view_.setStatusText("Signaling error: " + ctx.event.message.toStdString());
+      }},
+  };
 
-  if (event.type == SignalingClient::Event::Type::PeerLeft &&
-      !event.user_id.empty()) {
-    peer_latency_ms_.erase(event.user_id);
-    peer_ping_last_sent_ms_.erase(event.user_id);
-    rebuildParticipantsFromUserIds(
-        ParticipantRosterBuilder::WithoutUser(
-            participants_, event.user_id, current_user_id),
-        current_user_id, selected_part_label, session_.IsMuted());
-    return;
-  }
-
-  if (event.type == SignalingClient::Event::Type::PeerPing) {
-    if (!event.from_user_id.empty() && event.sent_at_ms > 0) {
-      signaling_client_.sendPeerPong(event.from_user_id, event.sent_at_ms);
-    }
-    return;
-  }
-
-  if (event.type == SignalingClient::Event::Type::PeerPong) {
-    if (!event.from_user_id.empty() && event.sent_at_ms > 0) {
-      const std::uint64_t now_ms = nowSteadyMs();
-      if (now_ms >= event.sent_at_ms) {
-        const auto rtt_ms = static_cast<int>(now_ms - event.sent_at_ms);
-        peer_latency_ms_[event.from_user_id] = juce::jlimit(0, 5000, rtt_ms);
-      }
-    }
-    return;
-  }
-
-  if (event.type == SignalingClient::Event::Type::Error) {
-    session_view_.setStatusText(juce::String("Signaling error: ") +
-                                event.message);
+  const auto it = dispatch.find(event.type);
+  if (it != dispatch.end()) {
+    EventContext ctx{*this, current_user_id, selected_part_label, event};
+    it->second(ctx);
   }
 }
 
-const std::vector<ParticipantSummary>& SessionPresenceController::participants()
-    const {
+// ---------------------------------------------------------------------------
+// Participant list
+// ---------------------------------------------------------------------------
+
+const std::vector<ParticipantSummary>& SessionPresenceController::participants() const {
   return participants_;
 }
 

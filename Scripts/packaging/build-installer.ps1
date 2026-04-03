@@ -21,6 +21,11 @@ $StagingDir = "$PWD\staging-win"
 Write-Host "`n[1/3] CMake Install 실행 중 (의존성 수집)..." -ForegroundColor Yellow
 cmake --install out/build/juce-client-debug --prefix "$StagingDir" --config Debug
 
+# 2.5 OpenSSL DLL 명시적 복사 (런타임 에러 방지)
+Write-Host "`n[1.5/3] OpenSSL DLL 복사 중..." -ForegroundColor Yellow
+if (Test-Path "C:\vcpkg\installed\x64-windows\bin\*.dll") { Copy-Item "C:\vcpkg\installed\x64-windows\bin\*.dll" "$StagingDir" -Force }
+if (Test-Path "C:\Program Files\OpenSSL-Win64\bin\*.dll") { Copy-Item "C:\Program Files\OpenSSL-Win64\bin\*.dll" "$StagingDir" -Force }
+
 # 3. 환경변수 파일 복사
 Write-Host "`n[2/3] .env.deploy 파일 복사 중..." -ForegroundColor Yellow
 if (Test-Path "$PWD\.env.deploy") {
@@ -36,6 +41,7 @@ Get-ChildItem "$StagingDir" | Format-Table Name, Length, LastWriteTime
 
 # 5. Inno Setup 패키징 실행
 Write-Host "`n[3/3] Inno Setup 패키징 실행 중..." -ForegroundColor Yellow
-& $ISCC "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
+$OutDir = "$PWD\installer-output"
+& $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
 
-Write-Host "`n패키징 완료! Cpp\Client\Installer\Output 폴더를 확인하세요." -ForegroundColor Cyan
+Write-Host "`n패키징 완료! $OutDir 폴더를 확인하세요." -ForegroundColor Cyan

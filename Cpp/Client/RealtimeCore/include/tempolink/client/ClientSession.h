@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 
+#include "tempolink/audio/IAudioCodec.h"
 #include "tempolink/client/AudioPipeline.h"
 #include "tempolink/client/ClientTransport.h"
 #include "tempolink/client/ClockSyncTracker.h"
@@ -79,6 +80,8 @@ class ClientSession {
   int MetronomeBpm() const;
   void SetMetronomeVolume(float volume);
   float MetronomeVolume() const;
+  void SetMetronomeTone(int tone);
+  int MetronomeTone() const;
 
   const Stats& GetStats() const;
   const Config& GetConfig() const;
@@ -101,6 +104,10 @@ class ClientSession {
   ClockSyncTracker clock_sync_tracker_;
   std::unordered_map<std::uint32_t, PeerJitterBuffer> peer_jitter_buffers_;
   std::unordered_map<std::uint32_t, float> peer_levels_;
+
+  /// Unified codec — uses OpusCodec or NullAudioCodec via factory.
+  std::unique_ptr<tempolink::audio::IAudioCodec> encoder_codec_;
+  std::unordered_map<std::uint32_t, std::unique_ptr<tempolink::audio::IAudioCodec>> decoder_codecs_;
 };
 
 }  // namespace tempolink::client

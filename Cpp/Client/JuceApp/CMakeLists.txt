@@ -3,10 +3,6 @@ cmake_minimum_required(VERSION 3.24)
 option(TEMPOLINK_FETCH_JUCE "Download JUCE automatically when not found" ON)
 set(TEMPOLINK_JUCE_VERSION "8.0.7" CACHE STRING "JUCE version used when TEMPOLINK_FETCH_JUCE=ON")
 set(TEMPOLINK_JUCE_SOURCE_DIR "" CACHE PATH "Local JUCE source directory (contains CMakeLists.txt)")
-option(TEMPOLINK_FETCH_CPPHTTPLIB "Download cpp-httplib automatically when not found" ON)
-set(TEMPOLINK_CPPHTTPLIB_VERSION "v0.18.6" CACHE STRING "cpp-httplib version")
-option(TEMPOLINK_FETCH_NLOHMANN_JSON "Download nlohmann_json automatically when not found" ON)
-set(TEMPOLINK_NLOHMANN_JSON_VERSION "v3.11.3" CACHE STRING "nlohmann_json version")
 option(TEMPOLINK_BUILD_JUCE_VST3_BRIDGE "Build TempoLink JUCE VST3 bridge plugin" ON)
 
 find_package(JUCE CONFIG QUIET)
@@ -33,43 +29,9 @@ if(NOT TARGET juce::juce_core)
   endif()
 endif()
 
-find_package(httplib CONFIG QUIET)
-
-if(NOT TARGET httplib::httplib)
-  if(TEMPOLINK_FETCH_CPPHTTPLIB)
-    include(FetchContent)
-    FetchContent_Declare(
-      cpp_httplib
-      URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/${TEMPOLINK_CPPHTTPLIB_VERSION}.tar.gz
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(cpp_httplib)
-  else()
-    message(FATAL_ERROR
-      "cpp-httplib was not found.\n"
-      "Set httplib_DIR/CMAKE_PREFIX_PATH, or enable TEMPOLINK_FETCH_CPPHTTPLIB."
-    )
-  endif()
-endif()
-
-find_package(nlohmann_json CONFIG QUIET)
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-  if(TEMPOLINK_FETCH_NLOHMANN_JSON)
-    include(FetchContent)
-    FetchContent_Declare(
-      nlohmann_json
-      URL https://github.com/nlohmann/json/archive/refs/tags/${TEMPOLINK_NLOHMANN_JSON_VERSION}.tar.gz
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(nlohmann_json)
-  else()
-    message(FATAL_ERROR
-      "nlohmann_json was not found.\n"
-      "Set nlohmann_json_DIR/CMAKE_PREFIX_PATH, or enable TEMPOLINK_FETCH_NLOHMANN_JSON."
-    )
-  endif()
-endif()
+## FetchContent를 통해 전역 타겟으로 제공되므로 find_package 생략
+# find_package(httplib CONFIG REQUIRED)
+# find_package(nlohmann_json CONFIG REQUIRED)
 
 juce_add_gui_app(tempolink_juce_client PRODUCT_NAME "TempoLink JUCE Client")
 
@@ -77,13 +39,16 @@ target_sources(
   tempolink_juce_client
   PRIVATE
     include/tempolink/juce/MainComponent.h
+    include/tempolink/juce/app/ClientAppCallbackFactory.h
     include/tempolink/juce/app/ClientAppPresenter.h
+    include/tempolink/juce/app/ControllerCompositionFactory.h
     include/tempolink/juce/app/auth/AuthController.h
     include/tempolink/juce/app/content/ContentController.h
     include/tempolink/juce/app/LobbyBindings.h
     include/tempolink/juce/app/lobby/LobbyDataController.h
     include/tempolink/juce/app/navigation/ScreenMode.h
     include/tempolink/juce/app/navigation/ScreenNavigator.h
+    include/tempolink/juce/app/navigation/coordinators/RoomCommandUiCoordinator.h
     include/tempolink/juce/app/ParticipantRosterBuilder.h
     include/tempolink/juce/app/RoomCatalog.h
     include/tempolink/juce/app/RoomCommandController.h
@@ -91,6 +56,10 @@ target_sources(
     include/tempolink/juce/app/session/SessionPresenceController.h
     include/tempolink/juce/app/SessionBindings.h
     include/tempolink/juce/app/SessionModelSupport.h
+    include/tempolink/juce/bridge/AudioFilePlayer.h
+    include/tempolink/juce/bridge/AudioRecorder.h
+    include/tempolink/juce/bridge/AudioSessionService.h
+    include/tempolink/juce/bridge/SessionMediaBridgePort.h
     include/tempolink/juce/bridge/UdpAudioBridgePort.h
     include/tempolink/juce/config/ClientEnvConfig.h
     include/tempolink/juce/constants/ApiPaths.h
@@ -124,6 +93,7 @@ target_sources(
     include/tempolink/juce/ui/screens/MyRoomsView.h
     include/tempolink/juce/ui/screens/NewsView.h
     include/tempolink/juce/ui/components/ParticipantStripComponent.h
+    include/tempolink/juce/ui/components/ChatPanel.h
     include/tempolink/juce/ui/screens/ProfileView.h
     include/tempolink/juce/ui/screens/QnaView.h
     include/tempolink/juce/ui/screens/RoomEntrySettingsView.h
@@ -141,7 +111,9 @@ target_sources(
     include/tempolink/juce/ui/session/TopStatusBar.h
     src/AppMain.cpp
     src/MainComponent.cpp
+    src/app/ClientAppCallbackFactory.cpp
     src/app/ClientAppPresenter.cpp
+    src/app/ControllerCompositionFactory.cpp
     src/app/ClientAppPresenter.LoginBindings.cpp
     src/app/ClientAppPresenter.LobbyBindings.cpp
     src/app/ClientAppPresenter.SessionBindings.cpp
@@ -151,6 +123,10 @@ target_sources(
     src/app/LobbyBindings.cpp
     src/app/lobby/LobbyDataController.cpp
     src/app/navigation/ScreenNavigator.cpp
+    src/app/navigation/coordinators/AuthCoordinator.cpp
+    src/app/navigation/coordinators/LobbyCoordinator.cpp
+    src/app/navigation/coordinators/RoomCommandUiCoordinator.cpp
+    src/app/navigation/coordinators/SessionCoordinator.cpp
     src/app/ParticipantRosterBuilder.cpp
     src/app/RoomCatalog.cpp
     src/app/RoomCommandController.cpp
@@ -161,8 +137,13 @@ target_sources(
     src/config/ClientEnvConfig.cpp
     src/style/ThemeManager.cpp
     src/style/TempoLinkLookAndFeel.cpp
+    src/bridge/AudioFilePlayer.cpp
+    src/bridge/AudioRecorder.cpp
+    src/bridge/AudioSessionService.cpp
+    src/bridge/SessionMediaBridgePort.cpp
     src/bridge/UdpAudioBridgePort.cpp
     src/logging/AppLogger.cpp
+    src/async/AsyncTaskRunner.cpp
     src/network/auth/AuthApiClient.cpp
     src/network/http/common/DocumentContentService.cpp
     src/network/ice/IceConfigClient.cpp
@@ -176,6 +157,7 @@ target_sources(
     src/network/http/room/RoomApiPayloadBuilder.cpp
     src/network/signaling/SignalingClient.cpp
     src/network/signaling/SignalingEventParser.cpp
+    src/network/transport/JuceWebSocketTransport.cpp
     src/network/http/user/UsersApiClient.cpp
     src/network/http/user/ProfileApiClient.cpp
     src/ui/screens/LobbyView.cpp
@@ -184,6 +166,7 @@ target_sources(
     src/ui/screens/MyRoomsView.cpp
     src/ui/screens/NewsView.cpp
     src/ui/components/ParticipantStripComponent.cpp
+    src/ui/components/ChatPanel.cpp
     src/ui/screens/ProfileView.cpp
     src/ui/screens/QnaView.cpp
     src/ui/screens/RoomEntrySettingsView.cpp
@@ -276,6 +259,17 @@ if(TEMPOLINK_BUILD_JUCE_VST3_BRIDGE)
   )
 endif()
 
+# --- 로컬 디버깅을 위한 DLL 자동 복사 ---
+if(WIN32)
+  file(GLOB OPENSSL_DLLS "${OPENSSL_ROOT_DIR}/bin/*.dll")
+  if(OPENSSL_DLLS)
+    add_custom_command(TARGET tempolink_juce_client POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_DLLS} $<TARGET_FILE_DIR:tempolink_juce_client>
+      COMMENT "Copying OpenSSL DLLs to output directory for debugging"
+    )
+  endif()
+endif()
+
 # --- Installation and Packaging (CPack) ---
 include(GNUInstallDirs)
 
@@ -310,7 +304,7 @@ if(APPLE)
 elseif(UNIX AND NOT APPLE)
   install(TARGETS tempolink_juce_client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 elseif(WIN32)
-  # 자동으로 의존성 DLL(예: vcpkg의 OpenSSL 등)을 분석하여 같은 폴더에 설치합니다.
+  # 자동으로 의존성 DLL(OpenSSL 등)을 분석하여 같은 폴더에 복사합니다.
   install(TARGETS tempolink_juce_client
     RUNTIME_DEPENDENCY_SET app_deps
     RUNTIME DESTINATION .
@@ -320,7 +314,7 @@ elseif(WIN32)
     DESTINATION .
     PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
     POST_EXCLUDE_REGEXES ".*[\\\\/][Ss][Yy][Ss][Tt][Ee][Mm]32[\\\\/].*"
-    DIRECTORIES "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+    DIRECTORIES "${OPENSSL_ROOT_DIR}/bin"
   )
 endif()
 

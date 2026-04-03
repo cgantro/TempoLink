@@ -3,10 +3,43 @@
 #include <utility>
 
 #include "tempolink/juce/style/UiStyle.h"
+#include "tempolink/juce/ui/components/RoomCardComponent.h"
+
 
 namespace {
-constexpr int kCreateDialogWidth = 420;
-constexpr int kCreateDialogHeight = 240;
+constexpr int kCreateDialogWidth = 480;
+constexpr int kCreateDialogHeight = 420;
+
+RoomCreatePayload BuildCreatePayloadFromDialog(juce::AlertWindow& dialog) {
+  RoomCreatePayload payload;
+  payload.name = dialog.getTextEditorContents("name").trim();
+  payload.description = dialog.getTextEditorContents("description").trim();
+
+  const juce::String tags_raw = dialog.getTextEditorContents("tags");
+  for (const auto& token : juce::StringArray::fromTokens(tags_raw, ",", "")) {
+    const auto trimmed = token.trim();
+    if (trimmed.isNotEmpty()) {
+      payload.tags.push_back(trimmed);
+    }
+  }
+
+  if (auto* combo = dialog.getComboBoxComponent("capacity"); combo != nullptr) {
+    payload.max_participants = juce::jlimit(2, 6, combo->getSelectedId() + 1);
+  }
+  if (auto* combo = dialog.getComboBoxComponent("visibility"); combo != nullptr) {
+    payload.is_public = combo->getSelectedId() != 2;
+  }
+  if (auto* combo = dialog.getComboBoxComponent("passwordMode"); combo != nullptr) {
+    payload.has_password = combo->getSelectedId() == 2;
+  }
+  payload.password = dialog.getTextEditorContents("password").trim();
+  if (auto* combo = dialog.getComboBoxComponent("timeLimit"); combo != nullptr) {
+    const int selected_id = combo->getSelectedId();
+    payload.room_time_limit_minutes = selected_id <= 1 ? 0 : (selected_id - 1) * 30;
+  }
+
+  return payload;
+}
 }  // namespace
 
 MyRoomsView::MyRoomsView() {
@@ -37,8 +70,11 @@ MyRoomsView::MyRoomsView() {
       return;
     }
 
-    auto* dialog = new juce::AlertWindow("Create Room", "Set max participants",
+    auto* dialog = new juce::AlertWindow("Create Room", "Create your room",
                                          juce::AlertWindow::NoIcon, this);
+    dialog->addTextEditor("name", "", "Room Name");
+    dialog->addTextEditor("description", "", "Comment / Description");
+    dialog->addTextEditor("tags", "", "Tags (comma separated)");
     juce::StringArray capacity_options;
     for (int i = 2; i <= 6; ++i) {
       capacity_options.add(juce::String(i));
@@ -46,6 +82,33 @@ MyRoomsView::MyRoomsView() {
     dialog->addComboBox("capacity", capacity_options, "Max Participants");
     if (auto* combo = dialog->getComboBoxComponent("capacity"); combo != nullptr) {
       combo->setSelectedId(5, juce::dontSendNotification);
+    }
+    juce::StringArray visibility_options;
+    visibility_options.add("Public");
+    visibility_options.add("Private");
+    dialog->addComboBox("visibility", visibility_options, "Visibility");
+    if (auto* combo = dialog->getComboBoxComponent("visibility"); combo != nullptr) {
+      combo->setSelectedId(1, juce::dontSendNotification);
+    }
+
+    juce::StringArray password_options;
+    password_options.add("No password");
+    password_options.add("Use password");
+    dialog->addComboBox("passwordMode", password_options, "Password");
+    if (auto* combo = dialog->getComboBoxComponent("passwordMode"); combo != nullptr) {
+      combo->setSelectedId(1, juce::dontSendNotification);
+    }
+    dialog->addTextEditor("password", "", "Password (optional)");
+
+    juce::StringArray time_limit_options;
+    time_limit_options.add("No limit");
+    time_limit_options.add("30 min");
+    time_limit_options.add("60 min");
+    time_limit_options.add("90 min");
+    time_limit_options.add("120 min");
+    dialog->addComboBox("timeLimit", time_limit_options, "Room Time Limit");
+    if (auto* combo = dialog->getComboBoxComponent("timeLimit"); combo != nullptr) {
+      combo->setSelectedId(1, juce::dontSendNotification);
     }
     dialog->addButton("Create", 1, juce::KeyPress(juce::KeyPress::returnKey));
     dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
@@ -59,12 +122,8 @@ MyRoomsView::MyRoomsView() {
           if (safe_this == nullptr || result != 1 || !safe_this->on_create_room_) {
             return;
           }
-          int selected_capacity_id = 5;
-          if (auto* combo = dialog->getComboBoxComponent("capacity"); combo != nullptr) {
-            selected_capacity_id = combo->getSelectedId();
-          }
-          const int capacity = juce::jlimit(2, 6, selected_capacity_id + 1);
-          safe_this->on_create_room_(capacity);
+          const RoomCreatePayload payload = BuildCreatePayloadFromDialog(*dialog);
+          safe_this->on_create_room_(payload);
         }),
         false);
   };
@@ -97,8 +156,8 @@ void MyRoomsView::setRooms(const std::vector<RoomSummary>& rooms) {
   resized();
 }
 
-void MyRoomsView::setStatusText(const juce::String& status_text) {
-  status_label_.setText(status_text, juce::dontSendNotification);
+void MyRoomsView::setStatusText(const std::string& status_text) {
+  status_label_.setText(juce::String(status_text), juce::dontSendNotification);
 }
 
 void MyRoomsView::setPreviewHandler(std::function<void(std::string)> on_preview_room) {
@@ -136,7 +195,8 @@ void MyRoomsView::setShareHandler(std::function<void(std::string)> on_share_room
   }
 }
 
-void MyRoomsView::setCreateHandler(std::function<void(int)> on_create_room) {
+void MyRoomsView::setCreateHandler(
+    std::function<void(const RoomCreatePayload&)> on_create_room) {
   on_create_room_ = std::move(on_create_room);
 }
 

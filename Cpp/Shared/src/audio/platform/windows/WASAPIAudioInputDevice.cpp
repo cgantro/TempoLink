@@ -155,10 +155,10 @@ void WASAPIAudioInputDevice::CaptureLoop(std::stop_token stop_token,
   }
 
   WAVEFORMATEX fmt{};
-  fmt.wFormatTag = WAVE_FORMAT_PCM;
+  fmt.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
   fmt.nChannels = static_cast<WORD>(std::max<std::uint8_t>(1, config.channels));
   fmt.nSamplesPerSec = std::max<std::uint32_t>(8000, config.sample_rate_hz);
-  fmt.wBitsPerSample = 16;
+  fmt.wBitsPerSample = 32;
   fmt.nBlockAlign = static_cast<WORD>(fmt.nChannels * (fmt.wBitsPerSample / 8));
   fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
   fmt.cbSize = 0;
@@ -207,7 +207,7 @@ void WASAPIAudioInputDevice::CaptureLoop(std::stop_token stop_token,
   const std::size_t chunk_samples =
       static_cast<std::size_t>(std::max<std::uint16_t>(1, config.frame_samples)) *
       static_cast<std::size_t>(fmt.nChannels);
-  std::vector<std::int16_t> pending;
+  std::vector<float> pending;
   pending.reserve(chunk_samples * 3);
 
   while (!stop_token.stop_requested() && running_.load()) {
@@ -235,16 +235,16 @@ void WASAPIAudioInputDevice::CaptureLoop(std::stop_token stop_token,
       const std::size_t samples =
           static_cast<std::size_t>(frames) * static_cast<std::size_t>(fmt.nChannels);
       if ((flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0 || data == nullptr) {
-        pending.insert(pending.end(), samples, 0);
+        pending.insert(pending.end(), samples, 0.0f);
       } else {
-        const auto* source = reinterpret_cast<const std::int16_t*>(data);
+        const auto* source = reinterpret_cast<const float*>(data);
         pending.insert(pending.end(), source, source + samples);
       }
 
       capture_client->ReleaseBuffer(frames);
 
       while (pending.size() >= chunk_samples) {
-        callback(std::span<const std::int16_t>(pending.data(), chunk_samples));
+        callback(std::span<const float>(pending.data(), chunk_samples));
         pending.erase(pending.begin(), pending.begin() + static_cast<std::ptrdiff_t>(chunk_samples));
       }
 

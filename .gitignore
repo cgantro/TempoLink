@@ -16,3 +16,6 @@ SpringBoot/ControlPlaneService/.gradle/
 .env.deploy
 !.env.client.example
 !.env.server.example
+
+# CMake FetchContent Cache
+.cmake_deps/

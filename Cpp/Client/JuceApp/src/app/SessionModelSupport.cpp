@@ -62,13 +62,13 @@ void RebuildParticipants(const std::vector<std::string>& user_ids,
   out = ParticipantRosterBuilder::Build(user_ids, current_user_id, self_muted);
   for (auto& participant : out) {
     if (participant.is_self && !selected_part_label.empty()) {
-      participant.part_label = juce::String(selected_part_label);
+      participant.part_label = selected_part_label;
       break;
     }
   }
 }
 
-void RefreshSessionStatusView(SessionView& session_view,
+void RefreshSessionStatusView(ISessionView& session_view,
                               const std::string& active_room_code,
                               const tempolink::client::ClientSession::Stats& stats,
                               const std::string& audio_backend_name,
@@ -96,11 +96,11 @@ void RefreshSessionStatusView(SessionView& session_view,
   } else if (route_state == ConnectionBadgeState::Failed) {
     text += "  |  signaling disconnected";
   }
-  session_view.setStatusText(text);
+  session_view.setStatusText(text.toStdString());
 }
 
 void RefreshParticipantLevels(std::vector<ParticipantSummary>& participants,
-                              SessionView& session_view,
+                              ISessionView& session_view,
                               const tempolink::client::ClientSession& session,
                               const tempolink::client::ClientSession::Stats& stats,
                               bool signaling_connected,
