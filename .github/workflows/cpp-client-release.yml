@@ -32,9 +32,32 @@ jobs:
             libxinerama-dev libxrandr-dev libxrender-dev \
             libwebkit2gtk-4.1-dev libglu1-mesa-dev mesa-common-dev
 
+      - name: Cache vcpkg OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:/vcpkg/installed
+            C:/vcpkg/packages
+          key: vcpkg-openssl-${{ runner.os }}-x64-windows-v1
+          restore-keys: |
+            vcpkg-openssl-${{ runner.os }}-x64-windows-
+
       - name: Install Windows Dependencies
         if: runner.os == 'Windows'
-        run: choco install openssl
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${VCPKG_ROOT:-}" && -x "${VCPKG_ROOT}/vcpkg.exe" ]]; then
+            root="${VCPKG_ROOT}"
+          elif [[ -x "${SystemDrive}/vcpkg/vcpkg.exe" ]]; then
+            root="${SystemDrive}/vcpkg"
+          else
+            echo "vcpkg.exe not found on runner" >&2
+            exit 1
+          fi
+          echo "VCPKG_ROOT=${root}" >> "$GITHUB_ENV"
+          "${root}/vcpkg.exe" install openssl:x64-windows
 
       - name: Install macOS Dependencies
         if: runner.os == 'macOS'
@@ -119,7 +142,9 @@ jobs:
           cmake --preset juce-client-release `
             "-DCMAKE_C_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
             "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
-            "-DOPENSSL_ROOT_DIR=C:/Program Files/OpenSSL-Win64"
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DVCPKG_TARGET_TRIPLET=x64-windows" `
+            "-DOPENSSL_ROOT_DIR=$env:VCPKG_ROOT/installed/x64-windows"
 
       - name: Configure CMake (macOS/Linux)
         if: runner.os != 'Windows'
@@ -159,9 +184,6 @@ jobs:
           $StagingDir = "$PWD\staging-win"
           $OutDir = "$PWD\installer-output"
           cmake --install out/build/juce-client-release --prefix "$StagingDir" --config Release
-          Write-Host "Copying OpenSSL DLLs..." -ForegroundColor Yellow
-          if (Test-Path "C:\vcpkg\installed\x64-windows\bin\*.dll") { Copy-Item "C:\vcpkg\installed\x64-windows\bin\*.dll" "$StagingDir" -Force }
-          if (Test-Path "C:\Program Files\OpenSSL-Win64\bin\*.dll") { Copy-Item "C:\Program Files\OpenSSL-Win64\bin\*.dll" "$StagingDir" -Force }
           Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
           & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" "Cpp\Client\Installer\TempoLink.iss"
 
