@@ -1,104 +1,61 @@
 #include "tempolink/client/AudioPipeline.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
-#include <mutex>
 #include <vector>
 
-#include "tempolink/audio/IAudioInputDevice.h"
-#include "tempolink/audio/IAudioOutputDevice.h"
-#include "tempolink/audio/AudioInputFactory.h"
-#include "tempolink/audio/AudioOutputFactory.h"
 #include "tempolink/config/AudioConstants.h"
 
 namespace tempolink::client {
-
 namespace {
 
-float ComputeNormalizedPeak(std::span<const float> pcm) {
-  if (pcm.empty()) {
-    return 0.0F;
-  }
-
-  float max_abs = 0.0f;
-  for (const auto sample : pcm) {
-    const auto abs_sample = std::abs(sample);
-    if (abs_sample > max_abs) {
-      max_abs = abs_sample;
-    }
-  }
-
-  return std::clamp(max_abs, 0.0F, 1.0F);
+std::int16_t FloatToPcm16(float sample) {
+  const float clamped = std::clamp(sample, -1.0F, 1.0F);
+  return static_cast<std::int16_t>(clamped * 32767.0F);
 }
 
-float SmoothLevel(float previous, float incoming) {
-  constexpr float kAttack = 0.15F;
-  constexpr float kRelease = 0.05F;
-  if (incoming > previous) {
-    return previous + (incoming - previous) * kAttack;
-  }
-  return previous + (incoming - previous) * kRelease;
-}
-
-std::vector<std::string> ToDeviceIds(const std::vector<tempolink::audio::AudioDeviceInfo>& devices) {
-  std::vector<std::string> ids;
-  ids.reserve(devices.size());
-  for (const auto& device : devices) {
-    ids.push_back(device.id);
-  }
-  return ids;
-}
-
-std::string ToDisplayDevice(const std::vector<tempolink::audio::AudioDeviceInfo>& devices,
-                            const std::string& selected_id) {
-  for (const auto& device : devices) {
-    if (device.id == selected_id) {
-      return device.name;
-    }
-  }
-  return selected_id;
+float Pcm16ToFloat(std::int16_t sample) {
+  return static_cast<float>(sample) / 32767.0F;
 }
 
 }  // namespace
 
+// -----------------------------------------------------------------------
+// Start / Stop
+// -----------------------------------------------------------------------
+
 bool AudioPipeline::Start(CapturedPcmCallback on_pcm_captured) {
   Stop();
 
-  audio_input_ = tempolink::audio::CreateDefaultAudioInputDevice();
-  audio_output_ = tempolink::audio::CreateDefaultAudioOutputDevice();
-
-  if (!audio_input_ || !audio_output_) {
-    Stop();
+  if (!device_manager_.CreateDevices()) {
     return false;
   }
 
-  if (!selected_input_device_.empty()) {
-    audio_input_->SelectDevice(selected_input_device_);
-  } else {
-    selected_input_device_ = audio_input_->SelectedDeviceId();
-  }
-
-  if (!selected_output_device_.empty()) {
-    audio_output_->SelectDevice(selected_output_device_);
-  } else {
-    selected_output_device_ = audio_output_->SelectedDeviceId();
-  }
-
-  if (!audio_output_->Start(playback_config_)) {
+  if (!device_manager_.StartOutput(playback_config_)) {
     Stop();
     return false;
   }
-  audio_output_->SetOutputVolume(volume_.load());
+  device_manager_.SetOutputVolume(volume_.load());
 
-  {
-    std::scoped_lock lock(callback_mutex_);
-    captured_pcm_callback_ = std::move(on_pcm_captured);
-  }
+  // Install callback via atomic swap — no mutex on the audio thread.
+  callback_holder_ = std::make_shared<CapturedPcmCallback>(std::move(on_pcm_captured));
+  active_callback_.store(callback_holder_.get(), std::memory_order_release);
+
   running_ = true;
-  
-  reverb_processor_.Reset();
+  ResizeScratchBuffers();
 
-  if (!audio_input_->Start(
+  // Build the capture processor chain
+  capture_chain_.Clear();
+  capture_chain_.AddProcessor(&input_gain_processor_);
+  capture_chain_.AddProcessor(&reverb_processor_);
+  capture_chain_.AddProcessor(&metronome_processor_);
+
+  reverb_processor_.Reset();
+  input_meter_.Reset();
+  output_meter_.Reset();
+
+  if (!device_manager_.StartInput(
           capture_config_, [this](std::span<const float> pcm) {
             OnCapturedFrame(pcm);
           })) {
@@ -111,115 +68,95 @@ bool AudioPipeline::Start(CapturedPcmCallback on_pcm_captured) {
 
 void AudioPipeline::Stop() {
   running_ = false;
-  if (audio_input_) {
-    audio_input_->Stop();
-  }
-  if (audio_output_) {
-    audio_output_->Stop();
-  }
+  device_manager_.StopInput();
+  device_manager_.StopOutput();
+  device_manager_.DestroyDevices();
 
-  {
-    std::scoped_lock lock(callback_mutex_);
-    captured_pcm_callback_ = nullptr;
-  }
-  audio_input_.reset();
-  audio_output_.reset();
+  // Clear callback atomically
+  active_callback_.store(nullptr, std::memory_order_release);
+  callback_holder_.reset();
+
+  capture_chain_.Clear();
+  audio_bridge_ptr_.store(nullptr, std::memory_order_release);
+  retired_audio_bridges_.clear();
 }
 
 bool AudioPipeline::IsRunning() const { return running_.load(); }
 
-void AudioPipeline::SetMuted(bool muted) { muted_.store(muted); }
+// -----------------------------------------------------------------------
+// Mute
+// -----------------------------------------------------------------------
 
+void AudioPipeline::SetMuted(bool muted) { muted_.store(muted); }
 bool AudioPipeline::IsMuted() const { return muted_.load(); }
 
-void AudioPipeline::SetInputGain(float gain) {
-  input_gain_.store(std::clamp(gain, 0.0F, 2.0F));
-}
+// -----------------------------------------------------------------------
+// Input Gain (delegated)
+// -----------------------------------------------------------------------
 
-float AudioPipeline::InputGain() const { return input_gain_.load(); }
+void AudioPipeline::SetInputGain(float gain) { input_gain_processor_.SetGain(gain); }
+float AudioPipeline::InputGain() const { return input_gain_processor_.Gain(); }
 
-void AudioPipeline::SetInputReverb(float amount) {
-  reverb_processor_.SetAmount(amount);
-}
+// -----------------------------------------------------------------------
+// Reverb (delegated)
+// -----------------------------------------------------------------------
 
+void AudioPipeline::SetInputReverb(float amount) { reverb_processor_.SetAmount(amount); }
 float AudioPipeline::InputReverb() const { return reverb_processor_.Amount(); }
+
+// -----------------------------------------------------------------------
+// Volume
+// -----------------------------------------------------------------------
 
 void AudioPipeline::SetVolume(float volume) {
   const float clamped = std::clamp(volume, 0.0F, 1.0F);
   volume_.store(clamped);
-  if (audio_output_) {
-    audio_output_->SetOutputVolume(clamped);
-  }
+  device_manager_.SetOutputVolume(clamped);
 }
-
 float AudioPipeline::Volume() const { return volume_.load(); }
 
-float AudioPipeline::InputLevel() const { return input_level_.load(); }
+// -----------------------------------------------------------------------
+// Level Metering (delegated)
+// -----------------------------------------------------------------------
 
-float AudioPipeline::OutputLevel() const { return output_level_.load(); }
+float AudioPipeline::InputLevel() const { return input_meter_.Level(); }
+float AudioPipeline::OutputLevel() const { return output_meter_.Level(); }
+
+// -----------------------------------------------------------------------
+// Backend
+// -----------------------------------------------------------------------
 
 std::string AudioPipeline::AudioBackendName() const {
-  std::string input_backend = "input-uninitialized";
-  std::string output_backend = "output-uninitialized";
-  if (audio_input_) {
-    input_backend = audio_input_->BackendName();
-  }
-  if (audio_output_) {
-    output_backend = audio_output_->BackendName();
-  }
-  return input_backend + " / " + output_backend;
+  return device_manager_.InputBackendName() + " / " +
+         device_manager_.OutputBackendName();
 }
 
+// -----------------------------------------------------------------------
+// Device Management (delegated to AudioDeviceManager)
+// -----------------------------------------------------------------------
+
 std::vector<std::string> AudioPipeline::AvailableInputDevices() const {
-  if (audio_input_) {
-    return ToDeviceIds(audio_input_->ListDevices());
-  }
-  auto temp_input = tempolink::audio::CreateDefaultAudioInputDevice();
-  if (!temp_input) {
-    return {};
-  }
-  return ToDeviceIds(temp_input->ListDevices());
+  return device_manager_.AvailableInputDevices();
 }
 
 std::vector<std::string> AudioPipeline::AvailableOutputDevices() const {
-  if (audio_output_) {
-    return ToDeviceIds(audio_output_->ListDevices());
-  }
-  auto temp_output = tempolink::audio::CreateDefaultAudioOutputDevice();
-  if (!temp_output) {
-    return {};
-  }
-  return ToDeviceIds(temp_output->ListDevices());
+  return device_manager_.AvailableOutputDevices();
 }
 
 bool AudioPipeline::SetInputDevice(const std::string& device_id) {
-  selected_input_device_ = device_id;
-  if (audio_input_) {
-    return audio_input_->SelectDevice(device_id);
-  }
-  return true;
+  return device_manager_.SelectInputDevice(device_id);
 }
 
 bool AudioPipeline::SetOutputDevice(const std::string& device_id) {
-  selected_output_device_ = device_id;
-  if (audio_output_) {
-    return audio_output_->SelectDevice(device_id);
-  }
-  return true;
+  return device_manager_.SelectOutputDevice(device_id);
 }
 
 std::string AudioPipeline::SelectedInputDevice() const {
-  if (audio_input_) {
-    return ToDisplayDevice(audio_input_->ListDevices(), audio_input_->SelectedDeviceId());
-  }
-  return selected_input_device_;
+  return device_manager_.SelectedInputDevice();
 }
 
 std::string AudioPipeline::SelectedOutputDevice() const {
-  if (audio_output_) {
-    return ToDisplayDevice(audio_output_->ListDevices(), audio_output_->SelectedDeviceId());
-  }
-  return selected_output_device_;
+  return device_manager_.SelectedOutputDevice();
 }
 
 bool AudioPipeline::ConfigureAudioFormat(std::uint32_t sample_rate_hz,
@@ -233,33 +170,30 @@ bool AudioPipeline::ConfigureAudioFormat(std::uint32_t sample_rate_hz,
   playback_config_.sample_rate_hz = sample_rate_hz;
   capture_config_.frame_samples = frame_samples;
   playback_config_.frame_samples = frame_samples;
+  ResizeScratchBuffers();
 
   if (!running_.load()) {
     return true;
   }
 
-  if (!audio_input_ || !audio_output_) {
-    return false;
-  }
+  // Hot-reconfigure: restart devices with new format
+  device_manager_.StopInput();
+  device_manager_.StopOutput();
 
-  audio_input_->Stop();
-  audio_output_->Stop();
-
-  if (!audio_output_->Start(playback_config_)) {
+  if (!device_manager_.StartOutput(playback_config_)) {
     Stop();
     return false;
   }
-  audio_output_->SetOutputVolume(volume_.load());
-  if (!audio_input_->Start(
+  device_manager_.SetOutputVolume(volume_.load());
+  if (!device_manager_.StartInput(
           capture_config_, [this](std::span<const float> pcm) {
             OnCapturedFrame(pcm);
           })) {
     Stop();
     return false;
   }
-  
+
   reverb_processor_.Reset();
-  
   return true;
 }
 
@@ -272,72 +206,109 @@ std::uint16_t AudioPipeline::FrameSamples() const {
 }
 
 void AudioPipeline::SetAudioBridge(std::shared_ptr<AudioBridgePort> audio_bridge) {
+  if (running_.load(std::memory_order_acquire) && audio_bridge_ &&
+      audio_bridge_.get() != audio_bridge.get()) {
+    retired_audio_bridges_.push_back(audio_bridge_);
+  }
   audio_bridge_ = std::move(audio_bridge);
+  audio_bridge_ptr_.store(audio_bridge_ ? audio_bridge_.get() : nullptr,
+                          std::memory_order_release);
+  if (!running_.load(std::memory_order_acquire)) {
+    retired_audio_bridges_.clear();
+  }
 }
+
+// -----------------------------------------------------------------------
+// Metronome (delegated)
+// -----------------------------------------------------------------------
 
 void AudioPipeline::SetMetronomeEnabled(bool enabled) {
   metronome_processor_.SetEnabled(enabled);
+  local_metronome_processor_.SetEnabled(enabled);
 }
-
-bool AudioPipeline::IsMetronomeEnabled() const {
-  return metronome_processor_.IsEnabled();
-}
-
+bool AudioPipeline::IsMetronomeEnabled() const { return metronome_processor_.IsEnabled(); }
 void AudioPipeline::SetMetronomeBpm(int bpm) {
   metronome_processor_.SetBpm(bpm);
+  local_metronome_processor_.SetBpm(bpm);
 }
-
-int AudioPipeline::MetronomeBpm() const {
-  return metronome_processor_.Bpm();
-}
-
+int AudioPipeline::MetronomeBpm() const { return metronome_processor_.Bpm(); }
 void AudioPipeline::SetMetronomeVolume(float volume) {
   metronome_processor_.SetVolume(volume);
+  local_metronome_processor_.SetVolume(volume);
 }
+float AudioPipeline::MetronomeVolume() const { return metronome_processor_.Volume(); }
+void AudioPipeline::SetMetronomeTone(int tone) {
+  metronome_processor_.SetTone(tone);
+  local_metronome_processor_.SetTone(tone);
+}
+int AudioPipeline::MetronomeTone() const { return metronome_processor_.Tone(); }
 
-float AudioPipeline::MetronomeVolume() const {
-  return metronome_processor_.Volume();
-}
+// -----------------------------------------------------------------------
+// Peer Mixing (delegated)
+// -----------------------------------------------------------------------
 
 void AudioPipeline::SetPeerMonitorVolume(std::uint32_t participant_id, float volume) {
   peer_mixer_.SetPeerVolume(participant_id, volume);
 }
-
 float AudioPipeline::PeerMonitorVolume(std::uint32_t participant_id) const {
   return peer_mixer_.PeerVolume(participant_id);
 }
-
 void AudioPipeline::SetPeerMonitorPan(std::uint32_t participant_id, float pan) {
   peer_mixer_.SetPeerPan(participant_id, pan);
 }
-
 float AudioPipeline::PeerMonitorPan(std::uint32_t participant_id) const {
   return peer_mixer_.PeerPan(participant_id);
 }
 
+// -----------------------------------------------------------------------
+// Incoming peer audio → mix → output
+// -----------------------------------------------------------------------
+
 void AudioPipeline::HandleIncomingAudio(std::uint32_t sender_participant_id,
                                         std::span<const float> pcm) {
-  if (!running_.load() || !audio_output_) {
+  if (!running_.load() || !device_manager_.HasOutput()) {
     return;
   }
+  const std::size_t channels = std::max<std::size_t>(1, playback_config_.channels);
+  const std::size_t expected_samples =
+      static_cast<std::size_t>(playback_config_.frame_samples) * channels;
+  const std::size_t mix_samples = std::min(pcm.size(), expected_samples);
+  if (mix_samples == 0) {
+    return;
+  }
+  if (incoming_mix_buffer_.size() < mix_samples ||
+      incoming_pcm16_buffer_.size() < mix_samples) {
+    // Non-audio callback path fallback: keep correctness if format changed unexpectedly.
+    incoming_mix_buffer_.resize(mix_samples, 0.0F);
+    incoming_pcm16_buffer_.resize(mix_samples, 0);
+  }
+  std::fill_n(incoming_mix_buffer_.begin(), mix_samples, 0.0F);
 
-  // Master output buffer for this frame
-  std::vector<float> mixed(pcm.size(), 0.0f);
-  
   audio::AudioFormat format;
   format.sample_rate_hz = playback_config_.sample_rate_hz;
   format.channels = playback_config_.channels;
   format.frame_samples = playback_config_.frame_samples;
 
-  // Mix this peer into the master buffer
-  peer_mixer_.MixPeer(mixed, pcm, sender_participant_id, format);
+  peer_mixer_.MixPeer(std::span<float>(incoming_mix_buffer_.data(), mix_samples),
+                      pcm.subspan(0, mix_samples), sender_participant_id, format);
 
-  const float output_peak = ComputeNormalizedPeak(mixed);
-  const float prev_output_level = output_level_.load();
-  output_level_.store(SmoothLevel(prev_output_level, output_peak));
+  auto* bridge = audio_bridge_ptr_.load(std::memory_order_acquire);
+  if (bridge) {
+    for (std::size_t i = 0; i < mix_samples; ++i) {
+      incoming_pcm16_buffer_[i] = FloatToPcm16(incoming_mix_buffer_[i]);
+    }
+    bridge->OnPlaybackOutput(
+        std::span<const std::int16_t>(incoming_pcm16_buffer_.data(), mix_samples),
+        playback_config_);
+  }
 
-  audio_output_->PlayFrame(mixed);
+  output_meter_.Update(std::span<const float>(incoming_mix_buffer_.data(), mix_samples));
+  device_manager_.PlayFrame(std::span<const float>(incoming_mix_buffer_.data(), mix_samples));
 }
+
+// -----------------------------------------------------------------------
+// Capture frame callback (runs on audio thread — lock-free)
+// -----------------------------------------------------------------------
 
 void AudioPipeline::OnCapturedFrame(std::span<const float> pcm) {
   if (!running_.load()) {
@@ -351,41 +322,79 @@ void AudioPipeline::OnCapturedFrame(std::span<const float> pcm) {
     return;
   }
 
-  if (muted_.load()) {
-    const float prev_input_level = input_level_.load();
-    input_level_.store(SmoothLevel(prev_input_level, 0.0F));
+  if (capture_processed_buffer_.size() < expected_samples ||
+      capture_pcm16_buffer_.size() < expected_samples ||
+      metronome_monitor_buffer_.size() < expected_samples) {
     return;
   }
-
-  std::vector<float> processed(pcm.begin(), pcm.begin() + expected_samples);
-  const float input_gain = input_gain_.load();
-  if (std::abs(input_gain - 1.0F) > 0.0001F) {
-    for (auto& sample : processed) {
-      sample *= input_gain;
-    }
+  const bool muted = muted_.load();
+  if (muted) {
+    std::fill_n(capture_processed_buffer_.begin(), expected_samples, 0.0F);
+  } else {
+    std::copy_n(pcm.begin(), expected_samples, capture_processed_buffer_.begin());
   }
 
+  // Run through the processor chain: InputGain → Reverb → Metronome
   audio::AudioFormat format;
   format.sample_rate_hz = capture_config_.sample_rate_hz;
   format.channels = capture_config_.channels;
   format.frame_samples = capture_config_.frame_samples;
+  auto processed =
+      std::span<float>(capture_processed_buffer_.data(), expected_samples);
+  capture_chain_.Process(processed, format);
 
-  // Apply modular processors
-  reverb_processor_.Process(processed, format);
-  metronome_processor_.Process(processed, format);
-
-  const float input_peak = ComputeNormalizedPeak(processed);
-  const float prev_input_level = input_level_.load();
-  input_level_.store(SmoothLevel(prev_input_level, input_peak));
-
-  CapturedPcmCallback callback;
-  {
-    std::scoped_lock lock(callback_mutex_);
-    callback = captured_pcm_callback_;
+  auto* bridge = audio_bridge_ptr_.load(std::memory_order_acquire);
+  if (bridge) {
+    for (std::size_t i = 0; i < expected_samples; ++i) {
+      capture_pcm16_buffer_[i] = FloatToPcm16(processed[i]);
+    }
+    bridge->OnCapturedInput(
+        std::span<std::int16_t>(capture_pcm16_buffer_.data(), expected_samples),
+        capture_config_);
+    for (std::size_t i = 0; i < expected_samples; ++i) {
+      processed[i] = Pcm16ToFloat(capture_pcm16_buffer_[i]);
+    }
   }
-  if (callback) {
-    callback(processed);
+
+  input_meter_.Update(processed);
+
+  if (device_manager_.HasOutput() && local_metronome_processor_.IsEnabled()) {
+    std::fill_n(metronome_monitor_buffer_.begin(), expected_samples, 0.0F);
+    auto monitor =
+        std::span<float>(metronome_monitor_buffer_.data(), expected_samples);
+    local_metronome_processor_.Process(monitor, format);
+    bool has_click = false;
+    for (float sample : monitor) {
+      if (std::abs(sample) > 1.0e-4F) {
+        has_click = true;
+        break;
+      }
+    }
+    if (has_click) {
+      device_manager_.PlayFrame(monitor);
+    }
   }
+
+  // Lock-free callback dispatch: atomic load, no mutex
+  auto* cb = active_callback_.load(std::memory_order_acquire);
+  if (cb && *cb) {
+    (*cb)(processed);
+  }
+}
+
+void AudioPipeline::ResizeScratchBuffers() {
+  const std::size_t capture_channels = std::max<std::size_t>(1, capture_config_.channels);
+  const std::size_t playback_channels = std::max<std::size_t>(1, playback_config_.channels);
+  const std::size_t capture_samples =
+      static_cast<std::size_t>(capture_config_.frame_samples) * capture_channels;
+  const std::size_t playback_samples =
+      static_cast<std::size_t>(playback_config_.frame_samples) * playback_channels;
+  capture_processed_buffer_.assign(capture_samples, 0.0F);
+  capture_silence_buffer_.assign(capture_samples, 0.0F);
+  capture_pcm16_buffer_.assign(capture_samples, 0);
+  metronome_monitor_buffer_.assign(capture_samples, 0.0F);
+  incoming_mix_buffer_.assign(playback_samples, 0.0F);
+  incoming_pcm16_buffer_.assign(playback_samples, 0);
 }
 
 }  // namespace tempolink::client

@@ -2,7 +2,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstring>
 #include <utility>
+
+#include "tempolink/audio/AudioCodecFactory.h"
 
 namespace tempolink::client {
 namespace {
@@ -54,11 +58,12 @@ bool ClientSession::Start(const Config& config) {
     return false;
   }
 
-#ifdef TEMPOLINK_USE_OPUS
-  encoder_ = std::make_unique<tempolink::client::codec::OpusAudioEncoder>(
-      config.sample_rate_hz ? config.sample_rate_hz : 48000, 2);
-  encoder_->setBitrate(64000);
-#endif
+  // Create encoder codec via factory (OpusCodec if available, else NullAudioCodec)
+  encoder_codec_ = tempolink::audio::CreateDefaultAudioCodec();
+  const std::uint32_t sample_rate = audio_pipeline_.SampleRateHz();
+  const std::uint16_t frame_samples = audio_pipeline_.FrameSamples();
+  encoder_codec_->Initialize(sample_rate, 2, frame_samples);
+  encoder_codec_->SetBitrate(64000);
 
   const bool audio_started = audio_pipeline_.Start(
       [this](std::span<const float> pcm) {
@@ -66,23 +71,16 @@ bool ClientSession::Start(const Config& config) {
             !joined_.load(std::memory_order_acquire)) {
           return;
         }
-#ifdef TEMPOLINK_USE_OPUS
-        if (encoder_) {
-          static thread_local std::vector<uint8_t> encode_buffer;
-          int encoded_bytes = encoder_->encode(pcm.data(), static_cast<int>(pcm.size() / 2), encode_buffer);
-          if (encoded_bytes > 0) {
-            SendPacket(tempolink::net::PacketType::kAudio, 
-                       std::span<const std::byte>(reinterpret_cast<const std::byte*>(encode_buffer.data()), encoded_bytes));
+        if (encoder_codec_) {
+          auto encoded = encoder_codec_->Encode(pcm);
+          if (!encoded.empty()) {
+            SendPacket(tempolink::net::PacketType::kAudio,
+                       std::span<const std::byte>(encoded.data(), encoded.size()));
           }
         }
-#else
-        SendPacket(tempolink::net::PacketType::kAudio, std::span<const std::byte>(reinterpret_cast<const std::byte*>(pcm.data()), pcm.size_bytes()));
-#endif
       });
   if (!audio_started) {
-#ifdef TEMPOLINK_USE_OPUS
-    encoder_.reset();
-#endif
+    encoder_codec_.reset();
     transport_.Stop();
     return false;
   }
@@ -106,10 +104,8 @@ void ClientSession::Stop() {
   stats_.connected = false;
   peer_jitter_buffers_.clear();
   peer_levels_.clear();
-#ifdef TEMPOLINK_USE_OPUS
-  decoders_.clear();
-  encoder_.reset();
-#endif
+  decoder_codecs_.clear();
+  encoder_codec_.reset();
   audio_pipeline_.Stop();
   transport_.Stop();
 }
@@ -184,48 +180,34 @@ bool ClientSession::Tick() {
         packet.header.sender_id != config_.participant_id) {
       auto& jitter_buffer = peer_jitter_buffers_[packet.header.sender_id];
       jitter_buffer.Push(packet.header.sequence, packet.header.timestamp_us,
-                         packet.payload);
-      
-      // Level tracking is now updated during actual decoding in the render loop/Tick
+                         std::move(packet.payload));
     }
   }
 
+  // Decode and mix peer audio
   constexpr std::size_t kTargetJitterDepthPackets = 3;
   for (auto& [sender_id, jitter_buffer] : peer_jitter_buffers_) {
     const auto ready_frames = jitter_buffer.PopReady(kTargetJitterDepthPackets);
     for (const auto& frame : ready_frames) {
-#ifdef TEMPOLINK_USE_OPUS
-      // Decode with the specific peer's decoder
-      auto& decoder = decoders_[sender_id];
+      // Get or create decoder for this peer
+      auto& decoder = decoder_codecs_[sender_id];
       if (!decoder) {
-        decoder = std::make_unique<tempolink::client::codec::OpusAudioDecoder>(
-            audio_pipeline_.SampleRateHz(), 2);
+        decoder = tempolink::audio::CreateDefaultAudioCodec();
+        decoder->Initialize(audio_pipeline_.SampleRateHz(), 2,
+                            audio_pipeline_.FrameSamples());
       }
-      
-      static thread_local std::vector<float> decode_buffer;
-      int decoded_samples = decoder->decode(
-          reinterpret_cast<const uint8_t*>(frame.payload.data()),
-          static_cast<int>(frame.payload.size()),
-          decode_buffer, 
-          audio_pipeline_.FrameSamples());
 
-      if (decoded_samples > 0) {
-        audio_pipeline_.HandleIncomingAudio(sender_id, decode_buffer);
-        
+      auto decoded_pcm = decoder->Decode(frame.payload);
+      if (!decoded_pcm.empty()) {
+        audio_pipeline_.HandleIncomingAudio(sender_id, decoded_pcm);
+
         // Update level tracking for UI
         float current_peak = 0.0f;
-        for (float s : decode_buffer) {
-            current_peak = std::max(current_peak, std::abs(s));
+        for (float s : decoded_pcm) {
+          current_peak = std::max(current_peak, std::abs(s));
         }
         peer_levels_[sender_id] = SmoothLevel(peer_levels_[sender_id], current_peak);
       }
-#else
-      // Pass-through PCM
-      audio_pipeline_.HandleIncomingAudio(
-          sender_id, std::span<const float>(
-                         reinterpret_cast<const float*>(frame.payload.data()),
-                         frame.payload.size() / sizeof(float)));
-#endif
     }
   }
 
@@ -364,6 +346,10 @@ void ClientSession::SetMetronomeVolume(float volume) {
 float ClientSession::MetronomeVolume() const {
   return audio_pipeline_.MetronomeVolume();
 }
+
+void ClientSession::SetMetronomeTone(int tone) { audio_pipeline_.SetMetronomeTone(tone); }
+
+int ClientSession::MetronomeTone() const { return audio_pipeline_.MetronomeTone(); }
 
 const ClientSession::Stats& ClientSession::GetStats() const { return stats_; }
 
