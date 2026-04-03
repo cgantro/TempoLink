@@ -39,6 +39,8 @@ jobs:
           path: |
             C:/vcpkg/installed
             C:/vcpkg/packages
+            D:/vcpkg/installed
+            D:/vcpkg/packages
           key: vcpkg-openssl-${{ runner.os }}-x64-windows-v1
           restore-keys: |
             vcpkg-openssl-${{ runner.os }}-x64-windows-
@@ -48,16 +50,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${VCPKG_ROOT:-}" && -x "${VCPKG_ROOT}/vcpkg.exe" ]]; then
-            root="${VCPKG_ROOT}"
-          elif [[ -x "${SystemDrive}/vcpkg/vcpkg.exe" ]]; then
-            root="${SystemDrive}/vcpkg"
+          system_drive="${SYSTEMDRIVE:-${SystemDrive:-C:}}"
+          if [[ -n "${VCPKG_ROOT:-}" && -x "${VCPKG_ROOT//\\//}/vcpkg.exe" ]]; then
+            root="${VCPKG_ROOT//\\//}"
+          elif [[ -n "${VCPKG_INSTALLATION_ROOT:-}" && -x "${VCPKG_INSTALLATION_ROOT//\\//}/vcpkg.exe" ]]; then
+            root="${VCPKG_INSTALLATION_ROOT//\\//}"
+          elif [[ -x "${system_drive}/vcpkg/vcpkg.exe" ]]; then
+            root="${system_drive}/vcpkg"
           else
+            where.exe vcpkg || true
             echo "vcpkg.exe not found on runner" >&2
             exit 1
           fi
           echo "VCPKG_ROOT=${root}" >> "$GITHUB_ENV"
-          "${root}/vcpkg.exe" install openssl:x64-windows
+          "${root}/vcpkg.exe" install openssl:x64-windows --triplet x64-windows
 
       - name: Install macOS Dependencies
         if: runner.os == 'macOS'
