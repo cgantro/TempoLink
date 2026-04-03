@@ -51,10 +51,12 @@ void ChatPanel::paint(juce::Graphics& g) {
 }
 
 void ChatPanel::resized() {
-  auto area = getLocalBounds().reduced(5);
-  area.removeFromBottom(2); // spacing
-  input_field_.setBounds(area.removeFromBottom(30));
-  area.removeFromBottom(5); // spacing
+  auto area = getLocalBounds().reduced(6);
+  const int input_h =
+      juce::jlimit(30, 44, static_cast<int>(area.getHeight() * 0.18F));
+  area.removeFromBottom(2);
+  input_field_.setBounds(area.removeFromBottom(input_h));
+  area.removeFromBottom(6);
   history_display_.setBounds(area);
 }
 
@@ -80,9 +82,21 @@ void ChatPanel::SendCurrentMessage() {
       AddMessage(local_msg);
     } else {
       tempolink::juceapp::logging::Error("Failed to send chat message.");
+      Message system_msg;
+      system_msg.user_id = "System";
+      system_msg.text = "메시지 전송 실패";
+      system_msg.timestamp = juce::Time::getCurrentTime().toString(true, false);
+      system_msg.is_local = false;
+      AddMessage(system_msg);
     }
   } else {
     tempolink::juceapp::logging::Error("Not connected to signaling server.");
+    Message system_msg;
+    system_msg.user_id = "System";
+    system_msg.text = "시그널링 연결이 없어 전송할 수 없습니다.";
+    system_msg.timestamp = juce::Time::getCurrentTime().toString(true, false);
+    system_msg.is_local = false;
+    AddMessage(system_msg);
   }
 
   input_field_.clear();

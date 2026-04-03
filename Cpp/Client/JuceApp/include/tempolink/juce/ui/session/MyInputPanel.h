@@ -23,12 +23,14 @@ class MyInputPanel final : public tempolink::juceapp::style::ThemeableComponent 
   void setInputReverb(float amount);
   void setMetronomeEnabled(bool enabled);
   void setMetronomeBpm(int bpm);
+  void setMetronomeTone(int tone);
 
   void setOnMuteChanged(std::function<void(bool)> on_mute_changed);
   void setOnInputGainChanged(std::function<void(float)> on_input_gain_changed);
   void setOnInputReverbChanged(std::function<void(float)> on_input_reverb_changed);
   void setOnMetronomeChanged(std::function<void(bool)> on_metronome_changed);
   void setOnBpmChanged(std::function<void(int)> on_bpm_changed);
+  void setOnMetronomeToneChanged(std::function<void(int)> on_metronome_tone_changed);
   void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed);
   void setOnOutputDeviceChanged(std::function<void(std::string)> on_output_changed);
   void setOnOpenAudioSettings(std::function<void()> on_open_audio_settings);
@@ -43,6 +45,7 @@ class MyInputPanel final : public tempolink::juceapp::style::ThemeableComponent 
   std::function<void(float)> on_input_reverb_changed_;
   std::function<void(bool)> on_metronome_changed_;
   std::function<void(int)> on_bpm_changed_;
+  std::function<void(int)> on_metronome_tone_changed_;
   std::function<void(std::string)> on_input_changed_;
   std::function<void(std::string)> on_output_changed_;
   std::function<void()> on_open_audio_settings_;
@@ -54,15 +57,19 @@ class MyInputPanel final : public tempolink::juceapp::style::ThemeableComponent 
   juce::ComboBox input_combo_;
   juce::Label output_label_;
   juce::ComboBox output_combo_;
-  juce::ToggleButton mute_toggle_{"Mute Mic"};
+  juce::TextButton mute_toggle_{"Mute Mic"};
   juce::Label input_level_label_;
   tempolink::juceapp::ui::common::LevelMeterComponent level_meter_;
   juce::Label input_gain_label_;
   juce::Slider input_gain_slider_;
   juce::Label reverb_label_;
   juce::Slider reverb_slider_;
-  juce::ToggleButton metronome_toggle_{"Metronome"};
+  juce::TextButton metronome_toggle_{"Metronome"};
   juce::Label bpm_label_;
   juce::Slider bpm_slider_;
+  juce::Label metronome_tone_label_;
+  juce::ComboBox metronome_tone_combo_;
+  juce::TextButton bpm_minus_button_{"-"};
+  juce::TextButton bpm_plus_button_{"+"};
   juce::TextButton audio_settings_button_{"Audio Settings"};
 };

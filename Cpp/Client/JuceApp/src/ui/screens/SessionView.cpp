@@ -7,6 +7,7 @@
 
 SessionView::SessionView() {
   addAndMakeVisible(top_status_bar_);
+  addAndMakeVisible(chat_toggle_button_);
   addAndMakeVisible(my_input_panel_);
   addAndMakeVisible(main_out_panel_);
 
@@ -15,6 +16,7 @@ SessionView::SessionView() {
 
   chat_card_.setTitle("Room Chat");
   addAndMakeVisible(chat_card_);
+  chat_card_.setVisible(chat_open_);
 
   participants_viewport_.setViewedComponent(&participants_container_, false);
   participants_viewport_.setScrollBarsShown(true, false);
@@ -45,6 +47,11 @@ SessionView::SessionView() {
       on_bpm_changed_(bpm);
     }
   });
+  my_input_panel_.setOnMetronomeToneChanged([this](int tone) {
+    if (!suppress_callbacks_ && on_metronome_tone_changed_) {
+      on_metronome_tone_changed_(tone);
+    }
+  });
   my_input_panel_.setOnInputDeviceChanged([this](std::string device_id) {
     if (!suppress_callbacks_ && on_input_changed_) {
       on_input_changed_(std::move(device_id));
@@ -71,6 +78,16 @@ SessionView::SessionView() {
       on_audio_file_toggle_(active);
     }
   });
+  main_out_panel_.setOnAudioFileSeekChanged([this](float position) {
+    if (!suppress_callbacks_ && on_audio_seek_changed_) {
+      on_audio_seek_changed_(position);
+    }
+  });
+  main_out_panel_.setOnAudioFileLoopChanged([this](bool enabled) {
+    if (!suppress_callbacks_ && on_audio_loop_changed_) {
+      on_audio_loop_changed_(enabled);
+    }
+  });
   main_out_panel_.setOnRecordToggle([this](bool recording) {
     if (!suppress_callbacks_ && on_record_toggle_) {
       on_record_toggle_(recording);
@@ -81,11 +98,29 @@ SessionView::SessionView() {
       on_disconnect_();
     }
   });
+
+  chat_toggle_button_.setClickingTogglesState(true);
+  chat_toggle_button_.setToggleState(true, juce::dontSendNotification);
+  chat_toggle_button_.onClick = [this] {
+    chat_open_ = chat_toggle_button_.getToggleState();
+    chat_card_.setVisible(chat_open_);
+    updateChatToggleButtonText();
+    resized();
+  };
+  updateChatToggleButtonText();
   
   updateTheme();
 }
 void SessionView::updateTheme() {
   participant_list_card_.setColour(juce::Label::textColourId, tempolink::juceapp::style::TextPrimary());
+  chat_toggle_button_.setColour(juce::TextButton::buttonColourId,
+                                tempolink::juceapp::style::CardBackground());
+  chat_toggle_button_.setColour(juce::TextButton::buttonOnColourId,
+                                tempolink::juceapp::style::AccentCyan().withAlpha(0.28F));
+  chat_toggle_button_.setColour(juce::TextButton::textColourOffId,
+                                tempolink::juceapp::style::TextPrimary());
+  chat_toggle_button_.setColour(juce::TextButton::textColourOnId,
+                                tempolink::juceapp::style::TextPrimary());
   
   // Note: child panels (TopStatusBar, etc) are their own listeners and handle themselves.
   // But we can force them to update if needed, though they already do via the global manager.
@@ -93,8 +128,8 @@ void SessionView::updateTheme() {
   repaint();
 }
 
-void SessionView::setRoomTitle(const juce::String& title) {
-  top_status_bar_.setRoomTitle(title);
+void SessionView::setRoomTitle(const std::string& title) {
+  top_status_bar_.setRoomTitle(juce::String(title));
 }
 
 void SessionView::setConnectionState(bool connected) {
@@ -106,8 +141,8 @@ void SessionView::setConnectionMode(ConnectionBadgeState state) {
   top_status_bar_.setConnectionMode(state);
 }
 
-void SessionView::setStatusText(const juce::String& status_text) {
-  top_status_bar_.setStatusText(status_text);
+void SessionView::setStatusText(const std::string& status_text) {
+  top_status_bar_.setStatusText(juce::String(status_text));
 }
 
 void SessionView::setSignalingClient(SignalingClient& client) {
@@ -116,11 +151,11 @@ void SessionView::setSignalingClient(SignalingClient& client) {
   resized();
 }
 
-void SessionView::addChatMessage(const std::string& user_id, const juce::String& text, bool is_local) {
+void SessionView::addChatMessage(const std::string& user_id, const std::string& text, bool is_local) {
   if (chat_panel_) {
     tempolink::juceapp::ui::ChatPanel::Message msg;
     msg.user_id = user_id;
-    msg.text = text;
+    msg.text = juce::String(text);
     msg.is_local = is_local;
     msg.timestamp = juce::Time::getCurrentTime().toString(true, false);
     chat_panel_->AddMessage(msg);
@@ -212,8 +247,20 @@ void SessionView::setAudioFileActive(bool active) {
   main_out_panel_.setAudioFileActive(active);
 }
 
+void SessionView::setAudioFilePlaybackPosition(float normalized_position) {
+  main_out_panel_.setAudioFilePlaybackPosition(normalized_position);
+}
+
+void SessionView::setAudioFileLoopEnabled(bool enabled) {
+  main_out_panel_.setAudioFileLoopEnabled(enabled);
+}
+
 void SessionView::setMetronomeBpm(int bpm) {
   my_input_panel_.setMetronomeBpm(bpm);
+}
+
+void SessionView::setMetronomeTone(int tone) {
+  my_input_panel_.setMetronomeTone(tone);
 }
 
 void SessionView::setMute(bool muted) {
@@ -265,12 +312,27 @@ void SessionView::setOnAudioFileToggle(
   on_audio_file_toggle_ = std::move(on_audio_file_toggle);
 }
 
+void SessionView::setOnAudioFileSeekChanged(
+    std::function<void(float)> on_audio_seek_changed) {
+  on_audio_seek_changed_ = std::move(on_audio_seek_changed);
+}
+
+void SessionView::setOnAudioFileLoopChanged(
+    std::function<void(bool)> on_audio_loop_changed) {
+  on_audio_loop_changed_ = std::move(on_audio_loop_changed);
+}
+
 void SessionView::setOnRecordToggle(std::function<void(bool)> on_record_toggle) {
   on_record_toggle_ = std::move(on_record_toggle);
 }
 
 void SessionView::setOnBpmChanged(std::function<void(int)> on_bpm_changed) {
   on_bpm_changed_ = std::move(on_bpm_changed);
+}
+
+void SessionView::setOnMetronomeToneChanged(
+    std::function<void(int)> on_metronome_tone_changed) {
+  on_metronome_tone_changed_ = std::move(on_metronome_tone_changed);
 }
 
 void SessionView::setOnInputDeviceChanged(
@@ -322,19 +384,47 @@ void SessionView::setOnOpenAudioSettings(std::function<void()> on_open_audio_set
 void SessionView::resized() {
   auto area = getLocalBounds().reduced(tempolink::juceapp::style::kSessionPadding);
 
-  top_status_bar_.setBounds(area.removeFromTop(92));
-  area.removeFromTop(10);
+  const int total_h = area.getHeight();
+  const int total_w = area.getWidth();
+  const int top_h = juce::jlimit(76, 110, static_cast<int>(total_h * 0.135F));
+  const int section_gap = juce::jlimit(6, 14, static_cast<int>(total_h * 0.012F));
+  top_status_bar_.setBounds(area.removeFromTop(top_h));
+  const int toggle_w = juce::jlimit(96, 140, static_cast<int>(total_w * 0.11F));
+  const int toggle_h = juce::jlimit(28, 36, static_cast<int>(top_h * 0.38F));
+  chat_toggle_button_.setBounds(
+      top_status_bar_.getRight() - toggle_w - 14,
+      top_status_bar_.getY() + juce::jmax(8, (top_h - toggle_h) / 2),
+      toggle_w, toggle_h);
+  area.removeFromTop(section_gap);
 
-  auto left = area.removeFromLeft(tempolink::juceapp::style::kSessionLeftPanelWidth);
+  const int left_w = juce::jlimit(260, 420, static_cast<int>(total_w * 0.30F));
+  auto left = area.removeFromLeft(left_w);
+  area.removeFromLeft(section_gap);
   auto center = area;
+  juce::Rectangle<int> chat_area;
+  if (chat_open_) {
+    const int chat_w = juce::jlimit(220, 420, static_cast<int>(center.getWidth() * 0.30F));
+    chat_area = center.removeFromRight(chat_w);
+    center.removeFromRight(section_gap);
+  }
 
-  my_input_panel_.setBounds(left.removeFromTop(360));
-  left.removeFromTop(8);
+  // Responsive split for input/main-out panel.
+  const int min_main_out_height = juce::jlimit(84, 130, static_cast<int>(left.getHeight() * 0.22F));
+  const int desired_input_height = static_cast<int>(left.getHeight() * 0.74F);
+  const int max_input_height = juce::jmax(220, left.getHeight() - min_main_out_height);
+  const int input_height = juce::jlimit(220, max_input_height, desired_input_height);
+  my_input_panel_.setBounds(left.removeFromTop(input_height));
+  left.removeFromTop(section_gap);
   main_out_panel_.setBounds(left);
 
-  participant_list_card_.setBounds(center.removeFromTop(static_cast<int>(center.getHeight() * 0.65f)));
-  center.removeFromTop(10);
-  chat_card_.setBounds(center);
+  participant_list_card_.setBounds(center);
+  if (chat_open_) {
+    chat_card_.setVisible(true);
+    chat_card_.setBounds(chat_area);
+  } else {
+    chat_card_.setVisible(false);
+    chat_card_.setBounds({});
+  }
 
   layoutParticipantRows();
 }
@@ -374,4 +464,8 @@ void SessionView::layoutParticipantRows() {
     y += row_height + padding;
   }
   participants_container_.setSize(width, y + padding);
+}
+
+void SessionView::updateChatToggleButtonText() {
+  chat_toggle_button_.setButtonText(chat_open_ ? "Hide Chat" : "Show Chat");
 }

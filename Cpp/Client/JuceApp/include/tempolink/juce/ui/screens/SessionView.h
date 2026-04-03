@@ -14,59 +14,69 @@
 #include "tempolink/juce/ui/session/MainOutPanel.h"
 #include "tempolink/juce/ui/session/MyInputPanel.h"
 #include "tempolink/juce/ui/session/TopStatusBar.h"
-#include "tempolink/juce/network/signaling/SignalingClient.h"
+#include "tempolink/juce/ui/interfaces/ISessionView.h"
 
-class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
+class SessionView final : public tempolink::juceapp::style::ThemeableComponent,
+                          public ISessionView {
  public:
   SessionView();
   void updateTheme() override;
 
-  void setRoomTitle(const juce::String& title);
-  void setConnectionState(bool connected);
-  void setConnectionMode(ConnectionBadgeState state);
-  void setStatusText(const juce::String& status_text);
-  void setParticipants(const std::vector<ParticipantSummary>& participants);
-  void updateParticipantLevels(const std::vector<ParticipantSummary>& participants);
-  void setParticipantMonitorVolume(const std::string& user_id, float volume);
-  void setParticipantMonitorPan(const std::string& user_id, float pan);
+  void setRoomTitle(const std::string& title) override;
+  void setConnectionState(bool connected) override;
+  void setConnectionMode(ConnectionBadgeState state) override;
+  void setStatusText(const std::string& status_text) override;
+  void setParticipants(const std::vector<ParticipantSummary>& participants) override;
+  void updateParticipantLevels(const std::vector<ParticipantSummary>& participants) override;
+  void setParticipantMonitorVolume(const std::string& user_id, float volume) override;
+  void setParticipantMonitorPan(const std::string& user_id, float pan) override;
 
   void setInputDevices(const std::vector<std::string>& devices,
-                       const std::string& selected_device);
+                       const std::string& selected_device) override;
   void setOutputDevices(const std::vector<std::string>& devices,
-                        const std::string& selected_device);
+                        const std::string& selected_device) override;
 
-  void setMasterVolume(float volume);
-  void setInputLevel(float level);
-  void setInputGain(float gain);
-  void setInputReverb(float amount);
-  void setRecording(bool recording);
-  void setAudioFileActive(bool active);
-  void setMetronomeBpm(int bpm);
-  void setMute(bool muted);
-  void setMetronomeEnabled(bool enabled);
+  void setMasterVolume(float volume) override;
+  void setInputLevel(float level) override;
+  void setInputGain(float gain) override;
+  void setInputReverb(float amount) override;
+  void setRecording(bool recording) override;
+  void setAudioFileActive(bool active) override;
+  void setAudioFilePlaybackPosition(float normalized_position) override;
+  void setAudioFileLoopEnabled(bool enabled) override;
+  void setMetronomeBpm(int bpm) override;
+  void setMetronomeTone(int tone) override;
+  void setMute(bool muted) override;
+  void setMetronomeEnabled(bool enabled) override;
 
-  void setOnBack(std::function<void()> on_back);
-  void setOnDisconnect(std::function<void()> on_disconnect);
-  void setOnMuteChanged(std::function<void(bool)> on_mute_changed);
-  void setOnInputGainChanged(std::function<void(float)> on_input_gain_changed);
-  void setOnInputReverbChanged(std::function<void(float)> on_input_reverb_changed);
-  void setOnMetronomeChanged(std::function<void(bool)> on_metronome_changed);
-  void setOnVolumeChanged(std::function<void(float)> on_volume_changed);
-  void setOnAudioFileToggle(std::function<void(bool)> on_audio_file_toggle);
-  void setOnRecordToggle(std::function<void(bool)> on_record_toggle);
-  void setOnBpmChanged(std::function<void(int)> on_bpm_changed);
-  void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed);
-  void setOnOutputDeviceChanged(std::function<void(std::string)> on_output_changed);
-  void setOnParticipantAudioSettings(std::function<void(std::string)> on_audio_settings);
-  void setOnParticipantReconnect(std::function<void(std::string)> on_reconnect);
+  void setOnBack(std::function<void()> on_back) override;
+  void setOnDisconnect(std::function<void()> on_disconnect) override;
+  void setOnMuteChanged(std::function<void(bool)> on_mute_changed) override;
+  void setOnInputGainChanged(std::function<void(float)> on_input_gain_changed) override;
+  void setOnInputReverbChanged(std::function<void(float)> on_input_reverb_changed) override;
+  void setOnMetronomeChanged(std::function<void(bool)> on_metronome_changed) override;
+  void setOnVolumeChanged(std::function<void(float)> on_volume_changed) override;
+  void setOnAudioFileToggle(std::function<void(bool)> on_audio_file_toggle) override;
+  void setOnAudioFileSeekChanged(
+      std::function<void(float)> on_audio_seek_changed) override;
+  void setOnAudioFileLoopChanged(
+      std::function<void(bool)> on_audio_loop_changed) override;
+  void setOnRecordToggle(std::function<void(bool)> on_record_toggle) override;
+  void setOnBpmChanged(std::function<void(int)> on_bpm_changed) override;
+  void setOnMetronomeToneChanged(
+      std::function<void(int)> on_metronome_tone_changed) override;
+  void setOnInputDeviceChanged(std::function<void(std::string)> on_input_changed) override;
+  void setOnOutputDeviceChanged(std::function<void(std::string)> on_output_changed) override;
+  void setOnParticipantAudioSettings(std::function<void(std::string)> on_audio_settings) override;
+  void setOnParticipantReconnect(std::function<void(std::string)> on_reconnect) override;
   void setOnParticipantMonitorVolumeChanged(
-      std::function<void(std::string, float)> on_volume_changed);
+      std::function<void(std::string, float)> on_volume_changed) override;
   void setOnParticipantMonitorPanChanged(
-      std::function<void(std::string, float)> on_pan_changed);
-  void setOnOpenAudioSettings(std::function<void()> on_open_audio_settings);
+      std::function<void(std::string, float)> on_pan_changed) override;
+  void setOnOpenAudioSettings(std::function<void()> on_open_audio_settings) override;
 
   void setSignalingClient(SignalingClient& client);
-  void addChatMessage(const std::string& user_id, const juce::String& text, bool is_local = false);
+  void addChatMessage(const std::string& user_id, const std::string& text, bool is_local = false) override;
 
   void resized() override;
   void paint(juce::Graphics& g) override;
@@ -74,6 +84,7 @@ class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
  private:
   void rebuildParticipantRows();
   void layoutParticipantRows();
+  void updateChatToggleButtonText();
 
   std::vector<ParticipantSummary> participants_;
   std::vector<std::unique_ptr<ParticipantStripComponent>> participant_rows_;
@@ -87,8 +98,11 @@ class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
   std::function<void(bool)> on_metronome_changed_;
   std::function<void(float)> on_volume_changed_;
   std::function<void(bool)> on_audio_file_toggle_;
+  std::function<void(float)> on_audio_seek_changed_;
+  std::function<void(bool)> on_audio_loop_changed_;
   std::function<void(bool)> on_record_toggle_;
   std::function<void(int)> on_bpm_changed_;
+  std::function<void(int)> on_metronome_tone_changed_;
   std::function<void(std::string)> on_input_changed_;
   std::function<void(std::string)> on_output_changed_;
   std::function<void(std::string)> on_participant_audio_settings_;
@@ -98,6 +112,8 @@ class SessionView final : public tempolink::juceapp::style::ThemeableComponent {
   std::function<void()> on_open_audio_settings_;
 
   TopStatusBar top_status_bar_;
+  juce::TextButton chat_toggle_button_{"Hide Chat"};
+  bool chat_open_ = true;
   MyInputPanel my_input_panel_;
   MainOutPanel main_out_panel_;
 
