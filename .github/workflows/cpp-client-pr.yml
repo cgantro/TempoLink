@@ -9,6 +9,10 @@ on:
       - "CMakePresets.json"
       - ".github/workflows/cpp-client-pr.yml"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-test:
     strategy:
@@ -53,23 +57,40 @@ jobs:
 
       - name: Install Windows Dependencies
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          system_drive="${SYSTEMDRIVE:-${SystemDrive:-C:}}"
-          if [[ -n "${VCPKG_ROOT:-}" && -x "${VCPKG_ROOT//\\//}/vcpkg.exe" ]]; then
-            root="${VCPKG_ROOT//\\//}"
-          elif [[ -n "${VCPKG_INSTALLATION_ROOT:-}" && -x "${VCPKG_INSTALLATION_ROOT//\\//}/vcpkg.exe" ]]; then
-            root="${VCPKG_INSTALLATION_ROOT//\\//}"
-          elif [[ -x "${system_drive}/vcpkg/vcpkg.exe" ]]; then
-            root="${system_drive}/vcpkg"
-          else
-            where.exe vcpkg || true
-            echo "vcpkg.exe not found on runner" >&2
-            exit 1
-          fi
-          echo "TEMPOLINK_VCPKG_ROOT=${root}" >> "$GITHUB_ENV"
-          "${root}/vcpkg.exe" install openssl:x64-windows --triplet x64-windows
+          $rootCandidates = @(
+            $env:VCPKG_ROOT,
+            $env:VCPKG_INSTALLATION_ROOT,
+            (Join-Path ($env:SYSTEMDRIVE ?? "C:") "vcpkg")
+          ) | Where-Object { $_ -and (Test-Path (Join-Path $_ "vcpkg.exe")) }
+
+          if (-not $rootCandidates) {
+            & where.exe vcpkg
+            throw "vcpkg.exe not found on runner"
+          }
+
+          $root = ($rootCandidates[0] -replace '\\','/')
+          "TEMPOLINK_VCPKG_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          $vcpkgExe = Join-Path $root "vcpkg.exe"
+          $feedUrl = "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          $nugetExe = (& $vcpkgExe fetch nuget | Select-Object -Last 1).Trim()
+
+          & $nugetExe sources Remove -Name GitHubPackages | Out-Null
+          & $nugetExe sources Add `
+            -Name GitHubPackages `
+            -Source $feedUrl `
+            -UserName "${{ github.repository_owner }}" `
+            -Password "${{ secrets.GITHUB_TOKEN }}" `
+            -StorePasswordInClearText
+          & $nugetExe setapikey "${{ secrets.GITHUB_TOKEN }}" -Source $feedUrl
+
+          $binarySources = "clear;nuget,$feedUrl,readwrite;default,readwrite"
+          "VCPKG_BINARY_SOURCES=$binarySources" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $env:VCPKG_BINARY_SOURCES = $binarySources
+
+          & $vcpkgExe install openssl:x64-windows --triplet x64-windows
 
       - name: Install macOS Dependencies
         if: runner.os == 'macOS'
