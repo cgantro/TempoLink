@@ -22,6 +22,10 @@ SessionView::SessionView() {
   participants_viewport_.setScrollBarsShown(true, false);
   participant_list_card_.setContent(participants_viewport_);
 
+
+  /*
+    callback 지옥
+  */
   my_input_panel_.setOnMuteChanged([this](bool muted) {
     if (!suppress_callbacks_ && on_mute_changed_) {
       on_mute_changed_(muted);

@@ -7,6 +7,11 @@
 
 #include "tempolink/juce/logging/AppLogger.h"
 
+/**
+ * @brief WebSocket의 연결 및 송/수신 담당.
+ * 개선점 : Frame 조립과 같이, 패킷 조립에 관련한 기능들은 UDPHandler등 다른 파일에서도 중복된 기능이 있다.
+ * 따라서 PacketHandler와 같은 클래스에 위임시키는게 유지보수적으로 나아보인다.
+ */
 namespace tempolink::juceapp::network {
 
 namespace {
