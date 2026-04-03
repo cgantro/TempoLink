@@ -32,7 +32,7 @@ class NullAudioOutputDevice final : public IAudioOutputDevice {
   std::atomic_bool running_{false};
   std::atomic<float> output_volume_{1.0F};
   std::mutex last_frame_mutex_;
-  std::vector<std::int16_t> last_frame_;
+  std::vector<float> last_frame_;
   AudioPlaybackConfig config_{};
 };
 

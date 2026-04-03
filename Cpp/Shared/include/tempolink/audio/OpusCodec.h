@@ -12,6 +12,7 @@ struct OpusEncoder;
 
 namespace tempolink::audio {
 
+/// Opus codec implementation using float PCM and opus_encode_float/decode_float.
 class OpusCodec final : public IAudioCodec {
  public:
   OpusCodec();
@@ -22,9 +23,11 @@ class OpusCodec final : public IAudioCodec {
 
   bool Initialize(std::uint32_t sample_rate_hz, std::uint8_t channels,
                   std::uint16_t frame_size) override;
-  std::vector<std::byte> Encode(std::span<const std::int16_t> pcm) override;
-  std::vector<std::int16_t> Decode(
-      std::span<const std::byte> encoded) override;
+  std::vector<std::byte> Encode(std::span<const float> pcm) override;
+  std::vector<float> Decode(std::span<const std::byte> encoded) override;
+
+  bool SetBitrate(int bitrate) override;
+  bool SetComplexity(int complexity) override;
 
  private:
   OpusEncoder* encoder_ = nullptr;
@@ -35,4 +38,3 @@ class OpusCodec final : public IAudioCodec {
 };
 
 }  // namespace tempolink::audio
-

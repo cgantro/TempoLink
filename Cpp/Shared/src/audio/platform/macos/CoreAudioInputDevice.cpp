@@ -75,8 +75,8 @@ void CoreAudioInputDevice::CaptureLoop(util::StopToken stop_token,
   const auto frame_interval =
       std::chrono::microseconds(static_cast<std::int64_t>(
           (1000000LL * config.frame_samples) / config.sample_rate_hz));
-  std::vector<std::int16_t> frame(
-      static_cast<std::size_t>(config.frame_samples) * config.channels, 0);
+  std::vector<float> frame(
+      static_cast<std::size_t>(config.frame_samples) * config.channels, 0.0f);
 
   while (!stop_token.stop_requested() && running_.load()) {
     // TODO: Replace silent frame mock with actual CoreAudio capture pipeline.

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 
 namespace tempolink::audio {
 
@@ -57,7 +58,7 @@ bool OpusCodec::Initialize(std::uint32_t sample_rate_hz, std::uint8_t channels,
 #endif
 }
 
-std::vector<std::byte> OpusCodec::Encode(std::span<const std::int16_t> pcm) {
+std::vector<std::byte> OpusCodec::Encode(std::span<const float> pcm) {
 #ifdef TEMPOLINK_HAS_OPUS
   if (encoder_ == nullptr || pcm.empty()) {
     return {};
@@ -71,16 +72,14 @@ std::vector<std::byte> OpusCodec::Encode(std::span<const std::int16_t> pcm) {
 
   std::vector<unsigned char> encoded(4000);
   const int result =
-      opus_encode(encoder_, pcm.data(), frame_size_, encoded.data(),
-                  static_cast<opus_int32>(encoded.size()));
+      opus_encode_float(encoder_, pcm.data(), frame_size_, encoded.data(),
+                        static_cast<opus_int32>(encoded.size()));
   if (result <= 0) {
     return {};
   }
 
   std::vector<std::byte> bytes(static_cast<std::size_t>(result));
-  for (int i = 0; i < result; ++i) {
-    bytes[static_cast<std::size_t>(i)] = static_cast<std::byte>(encoded[i]);
-  }
+  std::memcpy(bytes.data(), encoded.data(), static_cast<std::size_t>(result));
   return bytes;
 #else
   (void)pcm;
@@ -88,22 +87,17 @@ std::vector<std::byte> OpusCodec::Encode(std::span<const std::int16_t> pcm) {
 #endif
 }
 
-std::vector<std::int16_t> OpusCodec::Decode(
-    std::span<const std::byte> encoded) {
+std::vector<float> OpusCodec::Decode(std::span<const std::byte> encoded) {
 #ifdef TEMPOLINK_HAS_OPUS
   if (decoder_ == nullptr || encoded.empty()) {
     return {};
   }
 
-  std::vector<unsigned char> payload(encoded.size());
-  for (std::size_t i = 0; i < encoded.size(); ++i) {
-    payload[i] = std::to_integer<unsigned char>(encoded[i]);
-  }
-
-  std::vector<std::int16_t> pcm(
+  std::vector<float> pcm(
       static_cast<std::size_t>(frame_size_) * channels_);
-  const int decoded = opus_decode(
-      decoder_, payload.data(), static_cast<opus_int32>(payload.size()),
+  const int decoded = opus_decode_float(
+      decoder_, reinterpret_cast<const unsigned char*>(encoded.data()),
+      static_cast<opus_int32>(encoded.size()),
       pcm.data(), frame_size_, 0);
   if (decoded <= 0) {
     return {};
@@ -114,6 +108,30 @@ std::vector<std::int16_t> OpusCodec::Decode(
 #else
   (void)encoded;
   return {};
+#endif
+}
+
+bool OpusCodec::SetBitrate(int bitrate) {
+#ifdef TEMPOLINK_HAS_OPUS
+  if (encoder_ == nullptr) {
+    return false;
+  }
+  return opus_encoder_ctl(encoder_, OPUS_SET_BITRATE(bitrate)) == OPUS_OK;
+#else
+  (void)bitrate;
+  return false;
+#endif
+}
+
+bool OpusCodec::SetComplexity(int complexity) {
+#ifdef TEMPOLINK_HAS_OPUS
+  if (encoder_ == nullptr) {
+    return false;
+  }
+  return opus_encoder_ctl(encoder_, OPUS_SET_COMPLEXITY(complexity)) == OPUS_OK;
+#else
+  (void)complexity;
+  return false;
 #endif
 }
 

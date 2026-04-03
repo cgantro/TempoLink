@@ -2,19 +2,32 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <optional>
+#include <memory>
 #include <span>
 #include <string>
-#include <vector>
 
 namespace tempolink::net {
 
-struct Datagram {
-  std::vector<std::byte> data;
-  std::string host;
+enum class SocketStatus : std::uint8_t {
+  Success = 0,
+  WouldBlock,
+  Closed,
+  Error,
+};
+
+struct Endpoint {
+  // IPv4 address in host byte order.
+  std::uint32_t address_ipv4 = 0;
   std::uint16_t port = 0;
 };
 
+struct ReceiveResult {
+  SocketStatus status = SocketStatus::Error;
+  std::size_t bytes_read = 0;
+  Endpoint sender{};
+};
+
+/// Cross-platform UDP socket. Platform details are hidden behind Pimpl.
 class UdpSocket {
  public:
   UdpSocket();
@@ -31,7 +44,7 @@ class UdpSocket {
 
   bool SendTo(std::span<const std::byte> data, const std::string& host,
               std::uint16_t port);
-  std::optional<Datagram> ReceiveFrom(std::size_t max_size = 2048);
+  ReceiveResult ReceiveFrom(std::span<std::byte> buffer);
 
   bool IsOpen() const;
   void Close();
@@ -39,11 +52,9 @@ class UdpSocket {
   static std::string LastErrorMessage();
 
  private:
-  using NativeSocket = std::intptr_t;
-  static constexpr NativeSocket kInvalidSocket = -1;
-
-  NativeSocket socket_ = kInvalidSocket;
+  /// Pimpl — platform-specific implementation.
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace tempolink::net
-

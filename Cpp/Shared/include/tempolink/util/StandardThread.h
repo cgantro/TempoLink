@@ -3,8 +3,10 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <thread>
+#include <utility>
 
 namespace tempolink::util {
 
@@ -14,16 +16,16 @@ namespace tempolink::util {
  */
 class StopToken {
  public:
-  StopToken() : stop_requested_(nullptr) {}
-  explicit StopToken(std::atomic<bool>* stop_requested)
+  StopToken() = default;
+  explicit StopToken(std::shared_ptr<std::atomic<bool>> stop_requested)
       : stop_requested_(stop_requested) {}
 
   [[nodiscard]] bool stop_requested() const noexcept {
-    return stop_requested_ && stop_requested_->load();
+    return stop_requested_ && stop_requested_->load(std::memory_order_acquire);
   }
 
  private:
-  std::atomic<bool>* stop_requested_;
+  std::shared_ptr<std::atomic<bool>> stop_requested_;
 };
 
 /**
@@ -36,15 +38,12 @@ class StandardThread {
 
   template <typename Callable, typename... Args>
   explicit StandardThread(Callable&& f, Args&&... args) {
-    stop_requested_ = std::make_unique<std::atomic<bool>>(false);
-    
-    // We pass a copy of the stop_requested pointer to the thread
-    auto* stop_ptr = stop_requested_.get();
-    
-    thread_ = std::thread([stop_ptr, 
+    stop_requested_ = std::make_shared<std::atomic<bool>>(false);
+
+    thread_ = std::thread([stop = stop_requested_,
                            f = std::forward<Callable>(f), 
                            ... args = std::forward<Args>(args)]() mutable {
-      f(StopToken(stop_ptr), std::forward<Args>(args)...);
+      f(StopToken(std::move(stop)), std::forward<Args>(args)...);
     });
   }
 
@@ -56,15 +55,28 @@ class StandardThread {
   }
 
   // Move-only like std::thread
-  StandardThread(StandardThread&&) noexcept = default;
-  StandardThread& operator=(StandardThread&&) noexcept = default;
+  StandardThread(StandardThread&& other) noexcept
+      : stop_requested_(std::move(other.stop_requested_)),
+        thread_(std::move(other.thread_)) {}
+
+  StandardThread& operator=(StandardThread&& other) noexcept {
+    if (this != &other) {
+      if (thread_.joinable()) {
+        request_stop();
+        thread_.join();
+      }
+      stop_requested_ = std::move(other.stop_requested_);
+      thread_ = std::move(other.thread_);
+    }
+    return *this;
+  }
 
   StandardThread(const StandardThread&) = delete;
   StandardThread& operator=(const StandardThread&) = delete;
 
   void request_stop() noexcept {
     if (stop_requested_) {
-      stop_requested_->store(true);
+      stop_requested_->store(true, std::memory_order_release);
     }
   }
 
@@ -73,7 +85,7 @@ class StandardThread {
   void detach() { thread_.detach(); }
 
  private:
-  std::unique_ptr<std::atomic<bool>> stop_requested_;
+  std::shared_ptr<std::atomic<bool>> stop_requested_;
   std::thread thread_;
 };
 
