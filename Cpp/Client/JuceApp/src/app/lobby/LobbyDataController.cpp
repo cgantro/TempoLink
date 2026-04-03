@@ -8,17 +8,17 @@
 
 LobbyDataController::LobbyDataController(
     RoomApiClient& room_api, IceConfigClient& ice_client,
-    RoomCatalog& room_catalog, LobbyView& lobby_view, MyRoomsView& my_rooms_view,
+    RoomCatalog& room_catalog, ILobbyView& lobby_view, IMyRoomsView& my_rooms_view,
     std::shared_ptr<std::atomic_bool> alive_flag,
-    std::string& current_user_id_ref,
-    const std::function<void(const juce::String&)>& set_lobby_status_text)
+    AppStatusContext& status_context,
+    const std::function<void(const std::string&)>& set_lobby_status_text)
     : room_api_(room_api),
       ice_client_(ice_client),
       room_catalog_(room_catalog),
       lobby_view_(lobby_view),
       my_rooms_view_(my_rooms_view),
       alive_flag_(std::move(alive_flag)),
-      current_user_id_ref_(current_user_id_ref),
+      status_context_(status_context),
       set_lobby_status_text_(set_lobby_status_text) {}
 
 void LobbyDataController::Tick(bool auto_refresh_enabled) {
@@ -60,16 +60,17 @@ void LobbyDataController::FetchRooms() {
           room_catalog_.clear();
           RefreshRoomViews();
           set_lobby_status_text_(
-              juce::String(tempolink::juceapp::text::kRoomApiUnavailablePrefix) +
-              error_text + tempolink::juceapp::text::kShowingMockRoomsSuffix);
-          my_rooms_view_.setStatusText("Failed to load MY ROOMS: " + error_text);
+              (juce::String(tempolink::juceapp::text::kRoomApiUnavailablePrefix) +
+               error_text + tempolink::juceapp::text::kShowingMockRoomsSuffix)
+                  .toStdString());
+          my_rooms_view_.setStatusText("Failed to load MY ROOMS: " + error_text.toStdString());
           return;
         }
 
         if (rooms.empty()) {
           room_catalog_.clear();
           RefreshRoomViews();
-          set_lobby_status_text_(tempolink::juceapp::text::kRoomApiEmptyFallback);
+          set_lobby_status_text_(std::string(tempolink::juceapp::text::kRoomApiEmptyFallback));
           my_rooms_view_.setStatusText("No rooms created yet.");
           return;
         }
@@ -77,20 +78,20 @@ void LobbyDataController::FetchRooms() {
         room_catalog_.setRooms(std::move(rooms));
         const int room_count = static_cast<int>(room_catalog_.allRooms().size());
         RefreshRoomViews();
-        set_lobby_status_text_(juce::String(tempolink::juceapp::text::kLoadedRoomsPrefix) +
-                               juce::String(room_count) +
-                               tempolink::juceapp::text::kLoadedRoomsUserDelimiter +
-                               juce::String(current_user_id_ref_));
-        my_rooms_view_.setStatusText("My rooms: " +
-                                     juce::String(static_cast<int>(
-                                         room_catalog_.ownedBy(current_user_id_ref_)
-                                             .size())));
+        set_lobby_status_text_((juce::String(tempolink::juceapp::text::kLoadedRoomsPrefix) +
+                                juce::String(room_count) +
+                                tempolink::juceapp::text::kLoadedRoomsUserDelimiter +
+                                juce::String(status_context_.current_user_id))
+                                   .toStdString());
+        my_rooms_view_.setStatusText(
+            "My rooms: " +
+            std::to_string(room_catalog_.ownedBy(status_context_.current_user_id).size()));
       });
 }
 
 void LobbyDataController::RefreshRoomViews() {
   lobby_view_.setRooms(room_catalog_.allRooms());
-  my_rooms_view_.setRooms(room_catalog_.ownedBy(current_user_id_ref_));
+  my_rooms_view_.setRooms(room_catalog_.ownedBy(status_context_.current_user_id));
 }
 
 void LobbyDataController::FetchIceConfig() {
@@ -108,8 +109,8 @@ void LobbyDataController::FetchIceConfig() {
         ice_fetch_in_flight_ = false;
         if (!ok) {
           set_lobby_status_text_(
-              juce::String(tempolink::juceapp::text::kIceConfigUnavailablePrefix) +
-              error_text);
+              (juce::String(tempolink::juceapp::text::kIceConfigUnavailablePrefix) + error_text)
+                  .toStdString());
           return;
         }
 
@@ -119,9 +120,9 @@ void LobbyDataController::FetchIceConfig() {
                                              ? tempolink::juceapp::text::kP2PAssistReady
                                              : tempolink::juceapp::text::kP2PAssistLimited;
         set_lobby_status_text_(
-            juce::String(tempolink::juceapp::text::kNetworkProfileLoadedPrefix) +
-            direct_hint +
-            tempolink::juceapp::text::kNetworkProfileLoadedSuffix);
+            (juce::String(tempolink::juceapp::text::kNetworkProfileLoadedPrefix) + direct_hint +
+             tempolink::juceapp::text::kNetworkProfileLoadedSuffix)
+                .toStdString());
       });
 }
 
@@ -130,17 +131,14 @@ void LobbyDataController::UpdateFilter(const LobbyRoomFilter& filter) {
   FetchRooms();
 }
 
-const RoomSummary* LobbyDataController::FindRoomByCode(
-    const std::string& room_code) const {
+const RoomSummary* LobbyDataController::FindRoomByCode(const std::string& room_code) const {
   return room_catalog_.findByCode(room_code);
 }
 
 std::size_t LobbyDataController::OwnedRoomCount() const {
-  return room_catalog_.ownedBy(current_user_id_ref_).size();
+  return room_catalog_.ownedBy(status_context_.current_user_id).size();
 }
 
-const IceConfigSnapshot& LobbyDataController::ice_config() const {
-  return ice_config_;
-}
+const IceConfigSnapshot& LobbyDataController::ice_config() const { return ice_config_; }
 
 bool LobbyDataController::ice_config_loaded() const { return ice_config_loaded_; }

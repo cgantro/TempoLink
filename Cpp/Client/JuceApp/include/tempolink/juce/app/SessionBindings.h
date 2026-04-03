@@ -3,7 +3,7 @@
 #include <functional>
 #include <string>
 
-#include "tempolink/juce/ui/screens/SessionView.h"
+#include "tempolink/juce/ui/interfaces/ISessionView.h"
 
 namespace tempolink::juceapp::app {
 
@@ -16,8 +16,11 @@ struct SessionBindingsCallbacks {
   std::function<void(bool)> on_metronome_changed;
   std::function<void(float)> on_volume_changed;
   std::function<void(bool)> on_audio_file_toggle;
+  std::function<void(float)> on_audio_file_seek_changed;
+  std::function<void(bool)> on_audio_file_loop_changed;
   std::function<void(bool)> on_record_toggle;
   std::function<void(int)> on_bpm_changed;
+  std::function<void(int)> on_metronome_tone_changed;
   std::function<void(std::string)> on_input_device_changed;
   std::function<void(std::string)> on_output_device_changed;
   std::function<void()> on_open_audio_settings;
@@ -27,7 +30,7 @@ struct SessionBindingsCallbacks {
   std::function<void(std::string, float)> on_participant_monitor_pan_changed;
 };
 
-void BindSessionView(SessionView& session_view,
+void BindSessionView(ISessionView& session_view,
                      const SessionBindingsCallbacks& callbacks);
 
 }  // namespace tempolink::juceapp::app

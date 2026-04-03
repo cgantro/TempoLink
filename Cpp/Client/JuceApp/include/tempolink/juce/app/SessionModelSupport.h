@@ -7,7 +7,7 @@
 
 #include "tempolink/client/ClientSession.h"
 #include "tempolink/juce/network/ice/IceConfigTypes.h"
-#include "tempolink/juce/ui/screens/SessionView.h"
+#include "tempolink/juce/ui/interfaces/ISessionView.h"
 #include "tempolink/juce/ui/models/UiModels.h"
 
 namespace tempolink::juceapp::app {
@@ -19,7 +19,7 @@ void RebuildParticipants(const std::vector<std::string>& user_ids,
                          const std::string& selected_part_label, bool self_muted,
                          std::vector<ParticipantSummary>& out);
 
-void RefreshSessionStatusView(SessionView& session_view,
+void RefreshSessionStatusView(ISessionView& session_view,
                               const std::string& active_room_code,
                               const tempolink::client::ClientSession::Stats& stats,
                               const std::string& audio_backend_name,
@@ -30,7 +30,7 @@ void RefreshSessionStatusView(SessionView& session_view,
                               const IceConfigSnapshot& ice_config);
 
 void RefreshParticipantLevels(std::vector<ParticipantSummary>& participants,
-                              SessionView& session_view,
+                              ISessionView& session_view,
                               const tempolink::client::ClientSession& session,
                               const tempolink::client::ClientSession::Stats& stats,
                               bool signaling_connected,

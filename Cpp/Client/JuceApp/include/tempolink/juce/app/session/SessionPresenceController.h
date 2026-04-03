@@ -10,11 +10,11 @@
 #include "tempolink/juce/network/ice/IceConfigTypes.h"
 #include "tempolink/juce/network/signaling/SignalingClient.h"
 #include "tempolink/juce/ui/models/UiModels.h"
-#include "tempolink/juce/ui/screens/SessionView.h"
+#include "tempolink/juce/ui/interfaces/ISessionView.h"
 
 class SessionPresenceController {
  public:
-  SessionPresenceController(SessionView& session_view,
+  SessionPresenceController(ISessionView& session_view,
                             tempolink::client::ClientSession& session,
                             SignalingClient& signaling_client);
 
@@ -47,7 +47,7 @@ class SessionPresenceController {
                                       bool self_muted);
   static std::uint64_t nowSteadyMs();
 
-  SessionView& session_view_;
+  ISessionView& session_view_;
   tempolink::client::ClientSession& session_;
   SignalingClient& signaling_client_;
 

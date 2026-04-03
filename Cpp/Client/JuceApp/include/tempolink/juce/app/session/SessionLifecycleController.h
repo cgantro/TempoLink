@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "tempolink/client/ClientSession.h"
 #include "tempolink/juce/app/navigation/ScreenMode.h"
@@ -13,29 +14,55 @@
 #include "tempolink/juce/network/http/room/RoomApiClient.h"
 #include "tempolink/juce/network/ice/IceConfigTypes.h"
 #include "tempolink/juce/network/signaling/SignalingClient.h"
-#include "tempolink/juce/ui/screens/LoginView.h"
-#include "tempolink/juce/ui/screens/RoomEntrySettingsView.h"
-#include "tempolink/juce/ui/screens/SessionView.h"
+#include "tempolink/juce/app/AppStatusContext.h"
+
+using AppStatusContext = tempolink::juceapp::app::AppStatusContext;
 
 class SessionLifecycleController {
  public:
-  SessionLifecycleController(
-      tempolink::client::ClientSession& session, RoomApiClient& room_api,
-      SignalingClient& signaling_client,
-      SessionPresenceController& session_presence_controller,
-      RoomCatalog& room_catalog, LoginView& login_view,
-      RoomEntrySettingsView& room_entry_view, SessionView& session_view,
-      std::shared_ptr<std::atomic_bool> alive_flag,
-      const std::function<void(const juce::String&)>& set_lobby_status_text,
-      const std::function<void(tempolink::juceapp::app::ScreenMode)>&
-          switch_screen,
-      bool& auth_completed, std::string& current_user_id,
-      std::string& current_display_name, std::string& selected_part_label,
-      std::string& preferred_input_device,
-      std::string& preferred_output_device, const std::string& control_plane_host,
-      const std::uint16_t& control_plane_port,
-      const std::string& default_relay_host,
-      const std::uint16_t& default_relay_port);
+  struct SessionServices {
+    tempolink::client::ClientSession& session;
+    RoomApiClient& room_api;
+    SignalingClient& signaling_client;
+    SessionPresenceController& session_presence_controller;
+    RoomCatalog& room_catalog;
+  };
+
+  struct SessionViewCallbacks {
+    std::function<void(const std::string&)> set_login_status_text;
+    std::function<void(const RoomSummary&)> set_room_entry_room;
+    std::function<void(const std::string&)> set_room_entry_selected_part;
+    std::function<void(const std::vector<std::string>&, const std::string&)>
+        set_room_entry_input_devices;
+    std::function<void(const std::vector<std::string>&, const std::string&)>
+        set_room_entry_output_devices;
+    std::function<void(const std::string&)> set_room_entry_status_text;
+    std::function<void(const std::string&)> set_session_room_title;
+    std::function<void(bool)> set_session_connection_state;
+    std::function<void(const std::string&)> set_session_status_text;
+    std::function<void(bool)> set_session_mute;
+    std::function<void(float)> set_session_input_level;
+    std::function<void(float)> set_session_input_gain;
+    std::function<void(float)> set_session_input_reverb;
+    std::function<void(bool)> set_session_recording;
+    std::function<void(bool)> set_session_audio_file_active;
+    std::function<void(bool)> set_session_metronome_enabled;
+    std::function<void(int)> set_session_metronome_bpm;
+    std::function<void(int)> set_session_metronome_tone;
+    std::function<void(float)> set_session_master_volume;
+  };
+
+  struct SessionRoutingCallbacks {
+    std::function<void(const std::string&)> set_lobby_status_text;
+    std::function<void(tempolink::juceapp::app::ScreenMode)> switch_screen;
+    std::function<void()> on_session_started;
+    std::function<void()> on_session_ended;
+  };
+
+  SessionLifecycleController(SessionServices services, AppStatusContext& status_context,
+                             SessionViewCallbacks view_callbacks,
+                             SessionRoutingCallbacks routing_callbacks,
+                             std::shared_ptr<std::atomic_bool> alive_flag);
 
   void OpenRoomEntry(const std::string& room_code);
   void PreviewRoom(const std::string& room_code);
@@ -55,23 +82,11 @@ class SessionLifecycleController {
   SignalingClient& signaling_client_;
   SessionPresenceController& session_presence_controller_;
   RoomCatalog& room_catalog_;
-  LoginView& login_view_;
-  RoomEntrySettingsView& room_entry_view_;
-  SessionView& session_view_;
   std::shared_ptr<std::atomic_bool> alive_flag_;
-  std::function<void(const juce::String&)> set_lobby_status_text_;
-  std::function<void(tempolink::juceapp::app::ScreenMode)> switch_screen_;
+  SessionViewCallbacks view_callbacks_;
+  SessionRoutingCallbacks routing_callbacks_;
 
-  bool& auth_completed_;
-  std::string& current_user_id_;
-  std::string& current_display_name_;
-  std::string& selected_part_label_;
-  std::string& preferred_input_device_;
-  std::string& preferred_output_device_;
-  const std::string& control_plane_host_;
-  const std::uint16_t& control_plane_port_;
-  const std::string& default_relay_host_;
-  const std::uint16_t& default_relay_port_;
+  AppStatusContext& status_context_;
 
   std::string active_room_code_;
   std::string pending_room_code_;
