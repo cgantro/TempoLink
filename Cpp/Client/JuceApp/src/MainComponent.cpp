@@ -3,6 +3,7 @@
 #include "tempolink/juce/MainComponent.h"
 
 #include "tempolink/juce/app/ClientAppPresenter.h"
+#include "tempolink/juce/bridge/AudioSessionService.h"
 #include "tempolink/juce/bridge/UdpAudioBridgePort.h"
 #include "tempolink/juce/config/ClientEnvConfig.h"
 #include "tempolink/juce/logging/AppLogger.h"
@@ -36,14 +37,18 @@ MainComponent::MainComponent() {
 
   try {
     const auto env = tempolink::juceapp::config::ClientEnvConfig::Load();
-    audio_bridge_ = std::make_shared<tempolink::juceapp::bridge::UdpAudioBridgePort>(
+    udp_audio_bridge_ = std::make_shared<tempolink::juceapp::bridge::UdpAudioBridgePort>(
         env.bridge_host, env.bridge_client_listen_port,
         env.bridge_plugin_listen_port);
+    audio_session_service_ =
+        std::make_shared<tempolink::juceapp::bridge::AudioSessionService>(
+            udp_audio_bridge_);
     presenter_ = std::make_unique<ClientAppPresenter>(
-        lobby_view_, login_view_, my_rooms_view_, room_entry_view_, session_view_,
-        profile_view_, users_view_, news_view_, manual_view_, qna_view_,
-        settings_view_);
-    presenter_->setAudioBridge(audio_bridge_);
+        tempolink::juceapp::di::ViewRegistry{
+            login_view_, lobby_view_, my_rooms_view_, room_entry_view_, session_view_,
+            profile_view_, users_view_, news_view_, manual_view_, qna_view_,
+            settings_view_}, deps_);
+    presenter_->setAudioSessionService(audio_session_service_);
     presenter_->initialize();
   } catch (const std::exception& ex) {
     tempolink::juceapp::logging::Error(
@@ -73,7 +78,8 @@ MainComponent::~MainComponent() {
     }
     presenter_.reset();
   }
-  audio_bridge_.reset();
+  audio_session_service_.reset();
+  udp_audio_bridge_.reset();
 }
 
 void MainComponent::themeChanged() {
@@ -108,7 +114,8 @@ void MainComponent::timerCallback() {
       tempolink::juceapp::logging::Error(
           "Presenter tick failed: " + juce::String(ex.what()));
     } catch (...) {
-      tempolink::juceapp::logging::Error("Presenter tick failed: unknown exception");
+      tempolink::juceapp::logging::Error(
+          "Presenter tick failed: unknown exception");
     }
   }
 }

@@ -3,6 +3,8 @@
 #include <memory>
 
 #include <juce_gui_extra/juce_gui_extra.h>
+#include "tempolink/juce/di/DependencyContainer.h"
+#include "tempolink/juce/di/ViewRegistry.h"
 #include "tempolink/juce/style/ThemeManager.h"
 
 #include "tempolink/juce/ui/screens/LobbyView.h"
@@ -20,6 +22,7 @@
 class ClientAppPresenter;
 namespace tempolink::juceapp::bridge {
 class UdpAudioBridgePort;
+class AudioSessionService;
 }
 
 class MainComponent final : public juce::Component, 
@@ -47,8 +50,11 @@ class MainComponent final : public juce::Component,
   ManualView manual_view_;
   QnaView qna_view_;
   SettingsView settings_view_;
+  tempolink::juceapp::di::DependencyContainer deps_;
   std::unique_ptr<ClientAppPresenter> presenter_;
-  std::shared_ptr<tempolink::juceapp::bridge::UdpAudioBridgePort> audio_bridge_;
+  std::shared_ptr<tempolink::juceapp::bridge::UdpAudioBridgePort> udp_audio_bridge_;
+  std::shared_ptr<tempolink::juceapp::bridge::AudioSessionService>
+      audio_session_service_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

@@ -39,13 +39,16 @@ target_sources(
   tempolink_juce_client
   PRIVATE
     include/tempolink/juce/MainComponent.h
+    include/tempolink/juce/app/ClientAppCallbackFactory.h
     include/tempolink/juce/app/ClientAppPresenter.h
+    include/tempolink/juce/app/ControllerCompositionFactory.h
     include/tempolink/juce/app/auth/AuthController.h
     include/tempolink/juce/app/content/ContentController.h
     include/tempolink/juce/app/LobbyBindings.h
     include/tempolink/juce/app/lobby/LobbyDataController.h
     include/tempolink/juce/app/navigation/ScreenMode.h
     include/tempolink/juce/app/navigation/ScreenNavigator.h
+    include/tempolink/juce/app/navigation/coordinators/RoomCommandUiCoordinator.h
     include/tempolink/juce/app/ParticipantRosterBuilder.h
     include/tempolink/juce/app/RoomCatalog.h
     include/tempolink/juce/app/RoomCommandController.h
@@ -53,6 +56,10 @@ target_sources(
     include/tempolink/juce/app/session/SessionPresenceController.h
     include/tempolink/juce/app/SessionBindings.h
     include/tempolink/juce/app/SessionModelSupport.h
+    include/tempolink/juce/bridge/AudioFilePlayer.h
+    include/tempolink/juce/bridge/AudioRecorder.h
+    include/tempolink/juce/bridge/AudioSessionService.h
+    include/tempolink/juce/bridge/SessionMediaBridgePort.h
     include/tempolink/juce/bridge/UdpAudioBridgePort.h
     include/tempolink/juce/config/ClientEnvConfig.h
     include/tempolink/juce/constants/ApiPaths.h
@@ -104,7 +111,9 @@ target_sources(
     include/tempolink/juce/ui/session/TopStatusBar.h
     src/AppMain.cpp
     src/MainComponent.cpp
+    src/app/ClientAppCallbackFactory.cpp
     src/app/ClientAppPresenter.cpp
+    src/app/ControllerCompositionFactory.cpp
     src/app/ClientAppPresenter.LoginBindings.cpp
     src/app/ClientAppPresenter.LobbyBindings.cpp
     src/app/ClientAppPresenter.SessionBindings.cpp
@@ -114,6 +123,10 @@ target_sources(
     src/app/LobbyBindings.cpp
     src/app/lobby/LobbyDataController.cpp
     src/app/navigation/ScreenNavigator.cpp
+    src/app/navigation/coordinators/AuthCoordinator.cpp
+    src/app/navigation/coordinators/LobbyCoordinator.cpp
+    src/app/navigation/coordinators/RoomCommandUiCoordinator.cpp
+    src/app/navigation/coordinators/SessionCoordinator.cpp
     src/app/ParticipantRosterBuilder.cpp
     src/app/RoomCatalog.cpp
     src/app/RoomCommandController.cpp
@@ -124,8 +137,13 @@ target_sources(
     src/config/ClientEnvConfig.cpp
     src/style/ThemeManager.cpp
     src/style/TempoLinkLookAndFeel.cpp
+    src/bridge/AudioFilePlayer.cpp
+    src/bridge/AudioRecorder.cpp
+    src/bridge/AudioSessionService.cpp
+    src/bridge/SessionMediaBridgePort.cpp
     src/bridge/UdpAudioBridgePort.cpp
     src/logging/AppLogger.cpp
+    src/async/AsyncTaskRunner.cpp
     src/network/auth/AuthApiClient.cpp
     src/network/http/common/DocumentContentService.cpp
     src/network/ice/IceConfigClient.cpp
@@ -139,6 +157,7 @@ target_sources(
     src/network/http/room/RoomApiPayloadBuilder.cpp
     src/network/signaling/SignalingClient.cpp
     src/network/signaling/SignalingEventParser.cpp
+    src/network/transport/JuceWebSocketTransport.cpp
     src/network/http/user/UsersApiClient.cpp
     src/network/http/user/ProfileApiClient.cpp
     src/ui/screens/LobbyView.cpp
