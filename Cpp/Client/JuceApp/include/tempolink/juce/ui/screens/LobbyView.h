@@ -8,41 +8,27 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "tempolink/juce/style/ThemeableComponent.h"
+#include "tempolink/juce/ui/interfaces/ILobbyView.h"
+
 #include "tempolink/juce/ui/components/RoomCardComponent.h"
 
-struct LobbyRoomFilter {
-  std::string query;
-  std::string tag;
-  std::optional<bool> is_public;
-  std::optional<bool> has_password;
-  std::string mode = "all";
-};
-
-class LobbyView final : public tempolink::juceapp::style::ThemeableComponent {
+class LobbyView final : public tempolink::juceapp::style::ThemeableComponent,
+                        public ILobbyView {
  public:
-  enum class NavigationTarget {
-    Rooms,
-    Profile,
-    Users,
-    News,
-    Manual,
-    Qna,
-    Settings
-  };
-
   LobbyView();
   void updateTheme() override;
 
-  void setRooms(const std::vector<RoomSummary>& rooms);
+  void setRooms(const std::vector<RoomSummary>& rooms) override;
   void setLogoImage(const juce::Image& logo_image);
-  void setPreviewHandler(std::function<void(std::string)> on_preview_room);
-  void setEnterHandler(std::function<void(std::string)> on_enter_room);
-  void setCreateHandler(std::function<void(std::string, int)> on_create_room);
-  void setMyRoomsHandler(std::function<void()> on_open_my_rooms);
+  void setPreviewHandler(std::function<void(std::string)> on_preview_room) override;
+  void setEnterHandler(std::function<void(std::string)> on_enter_room) override;
+  void setCreateHandler(
+      std::function<void(const std::string&, const RoomCreatePayload&)> on_create_room) override;
+  void setMyRoomsHandler(std::function<void()> on_open_my_rooms) override;
   void setNavigationHandler(
-      std::function<void(NavigationTarget)> on_navigation_selected);
-  void setFilterChangedHandler(std::function<void(const LobbyRoomFilter&)> on_filter_changed);
-  void setStatusText(const juce::String& status_text);
+      std::function<void(NavigationTarget)> on_navigation_selected) override;
+  void setFilterChangedHandler(std::function<void(const LobbyRoomFilter&)> on_filter_changed) override;
+  void setStatusText(const std::string& status_text) override;
 
   void resized() override;
   void paint(juce::Graphics& g) override;
@@ -55,7 +41,7 @@ class LobbyView final : public tempolink::juceapp::style::ThemeableComponent {
   std::vector<std::unique_ptr<RoomCardComponent>> room_cards_;
   std::function<void(std::string)> on_preview_room_;
   std::function<void(std::string)> on_enter_room_;
-  std::function<void(std::string, int)> on_create_room_;
+  std::function<void(const std::string&, const RoomCreatePayload&)> on_create_room_;
   std::function<void()> on_open_my_rooms_;
   std::function<void(NavigationTarget)> on_navigation_selected_;
   std::function<void(const LobbyRoomFilter&)> on_filter_changed_;

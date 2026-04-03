@@ -3,13 +3,15 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <optional>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include <juce_core/juce_core.h>
+
+#include "tempolink/juce/network/transport/IWebSocketTransport.h"
 
 class SignalingClient {
  public:
@@ -27,6 +29,11 @@ class SignalingClient {
 
   using EventCallback = std::function<void(const Event&)>;
 
+  /// Construct with explicit transport (for DI / testing).
+  explicit SignalingClient(
+      std::unique_ptr<tempolink::juceapp::network::IWebSocketTransport> transport);
+
+  /// Default constructor — creates JuceWebSocketTransport.
   SignalingClient();
   ~SignalingClient();
 
@@ -39,23 +46,17 @@ class SignalingClient {
   bool sendChatMessage(const juce::String& text, const std::string& to_user_id = "");
 
  private:
-  bool performHandshake(const std::string& host, int port, const std::string& path_query);
-  void receiveLoop();
-  bool readExact(void* out, int bytes, int timeout_ms);
+  void onFrameReceived(
+      const tempolink::juceapp::network::IWebSocketTransport::Frame& frame);
+  void onTransportDisconnected();
   void dispatchTextMessage(const juce::String& message_text);
   void emitEvent(Event event);
-  bool sendFrame(std::uint8_t opcode, const juce::MemoryBlock& payload);
-  bool sendPong(const juce::MemoryBlock& payload);
   bool sendEnvelope(const juce::String& type,
                     const std::string& to_user_id,
                     std::optional<std::uint64_t> sent_at_ms);
 
-  juce::StreamingSocket socket_;
-  std::thread receive_thread_;
-  std::atomic_bool connected_{false};
-  std::mutex write_mutex_;
+  std::unique_ptr<tempolink::juceapp::network::IWebSocketTransport> transport_;
   std::mutex callback_mutex_;
-  juce::MemoryBlock pending_read_buffer_;
   EventCallback callback_;
   std::string room_code_;
   std::string user_id_;

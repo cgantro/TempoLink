@@ -24,3 +24,13 @@ struct RoomUpdatePayload {
   int max_participants = 6;
 };
 
+struct RoomCreatePayload {
+  juce::String name;
+  juce::String description;
+  std::vector<juce::String> tags;
+  bool is_public = true;
+  bool has_password = false;
+  juce::String password;
+  int max_participants = 6;
+  int room_time_limit_minutes = 0;
+};

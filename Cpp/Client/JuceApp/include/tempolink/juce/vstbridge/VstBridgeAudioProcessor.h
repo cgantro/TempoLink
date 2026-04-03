@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <mutex>
 #include <span>
@@ -65,6 +66,7 @@ class VstBridgeAudioProcessor final : public juce::AudioProcessor {
   std::uint32_t prepared_sample_rate_hz_ = 48000;
   int prepared_block_size_ = 0;
   std::vector<std::int16_t> interleaved_input_;
+  std::array<std::byte, 65536> rx_datagram_buffer_{};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VstBridgeAudioProcessor)
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <array>
 #include <cstdint>
 #include <mutex>
 #include <span>
@@ -41,6 +42,7 @@ class UdpAudioBridgePort final : public tempolink::client::AudioBridgePort {
   std::uint16_t plugin_listen_port_ = 0;
   std::atomic_bool sockets_ready_{false};
   std::uint64_t tx_sequence_ = 0;
+  std::array<std::byte, 65536> rx_datagram_buffer_{};
 };
 
 }  // namespace tempolink::juceapp::bridge
