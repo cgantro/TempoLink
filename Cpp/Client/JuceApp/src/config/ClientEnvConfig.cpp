@@ -58,7 +58,25 @@ std::unordered_map<std::string, std::string> LoadDotEnvMap() {
     env_file_name += "." + env_suffix;
   }
 
-  juce::File env_file = juce::File::getCurrentWorkingDirectory().getChildFile(env_file_name);
+  juce::File env_file;
+  const auto cwd_file =
+      juce::File::getCurrentWorkingDirectory().getChildFile(env_file_name);
+  if (cwd_file.existsAsFile()) {
+    env_file = cwd_file;
+  }
+
+  // Installed app execution can start from arbitrary working directories.
+  // Prefer the executable directory as a stable deploy-time location.
+  if (!env_file.existsAsFile()) {
+    const auto exe_file =
+        juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+            .getParentDirectory()
+            .getChildFile(env_file_name);
+    if (exe_file.existsAsFile()) {
+      env_file = exe_file;
+    }
+  }
+
   if (!env_file.existsAsFile()) {
     const auto root = ResolveRepoRoot();
     if (root.isDirectory()) {

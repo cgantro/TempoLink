@@ -13,6 +13,7 @@ namespace {
 struct Endpoint {
   std::string host;
   int port = 80;
+  bool use_tls = false;
   bool valid = false;
 };
 
@@ -36,7 +37,8 @@ std::string PercentEncode(std::string_view input) {
   return encoded;
 }
 
-httplib::Result SendByMethod(httplib::Client& client, const Request& request) {
+template <typename ClientT>
+httplib::Result SendByMethod(ClientT& client, const Request& request) {
   const httplib::Headers headers{{"Accept", "application/json"}};
   const std::string path = request.path.empty() ? std::string("/") : request.path;
   const std::string body = request.body.toStdString();
@@ -66,6 +68,11 @@ Endpoint ParseEndpoint(const std::string& base_url) {
   Endpoint endpoint;
   std::string value = base_url;
   constexpr std::string_view kHttpPrefix = "http://";
+  constexpr std::string_view kHttpsPrefix = "https://";
+  if (value.rfind(kHttpsPrefix, 0) == 0) {
+    endpoint.use_tls = true;
+    value = value.substr(kHttpsPrefix.size());
+  } else
   if (value.rfind(kHttpPrefix, 0) == 0) {
     value = value.substr(kHttpPrefix.size());
   }
@@ -81,7 +88,7 @@ Endpoint ParseEndpoint(const std::string& base_url) {
   const std::size_t colon = value.rfind(':');
   if (colon == std::string::npos) {
     endpoint.host = value;
-    endpoint.port = 80;
+    endpoint.port = endpoint.use_tls ? 443 : 80;
     endpoint.valid = true;
     return endpoint;
   }
@@ -103,6 +110,41 @@ Endpoint ParseEndpoint(const std::string& base_url) {
   endpoint.port = port;
   endpoint.valid = !endpoint.host.empty();
   return endpoint;
+}
+
+template <typename ClientT>
+void ConfigureClient(ClientT& client, const Request& request) {
+  client.set_connection_timeout(request.timeout_ms / 1000,
+                                (request.timeout_ms % 1000) * 1000);
+  client.set_read_timeout(request.timeout_ms / 1000,
+                          (request.timeout_ms % 1000) * 1000);
+  client.set_write_timeout(request.timeout_ms / 1000,
+                           (request.timeout_ms % 1000) * 1000);
+  client.set_keep_alive(false);
+}
+
+template <typename ClientT>
+Response PerformWithClient(ClientT& client,
+                           const Request& request,
+                           Response response) {
+  if (!client.is_valid()) {
+    response.error_text = "Invalid control-plane URL";
+    return response;
+  }
+
+  ConfigureClient(client, request);
+
+  const auto result = SendByMethod(client, request);
+  if (!result) {
+    response.error_text = juce::String("HTTP transport error: ") +
+                          juce::String(httplib::to_string(result.error()));
+    return response;
+  }
+
+  response.transport_ok = true;
+  response.status_code = result->status;
+  response.body = juce::String(result->body);
+  return response;
 }
 
 }  // namespace
@@ -131,31 +173,18 @@ Response Perform(const std::string& base_url, const Request& request) {
       return response;
     }
 
+    if (endpoint.use_tls) {
+#if defined(CPPHTTPLIB_OPENSSL_SUPPORT)
+      httplib::SSLClient client(endpoint.host, endpoint.port);
+      return PerformWithClient(client, request, std::move(response));
+#else
+      response.error_text = "HTTPS is not supported in this build.";
+      return response;
+#endif
+    }
+
     httplib::Client client(endpoint.host, endpoint.port);
-    if (!client.is_valid()) {
-      response.error_text = "Invalid control-plane URL";
-      return response;
-    }
-
-    client.set_connection_timeout(request.timeout_ms / 1000,
-                                  (request.timeout_ms % 1000) * 1000);
-    client.set_read_timeout(request.timeout_ms / 1000,
-                            (request.timeout_ms % 1000) * 1000);
-    client.set_write_timeout(request.timeout_ms / 1000,
-                             (request.timeout_ms % 1000) * 1000);
-    client.set_keep_alive(false);
-
-    const auto result = SendByMethod(client, request);
-    if (!result) {
-      response.error_text = juce::String("HTTP transport error: ") +
-                            juce::String(httplib::to_string(result.error()));
-      return response;
-    }
-
-    response.transport_ok = true;
-    response.status_code = result->status;
-    response.body = juce::String(result->body);
-    return response;
+    return PerformWithClient(client, request, std::move(response));
   } catch (const std::exception& ex) {
     response.error_text =
         juce::String("HTTP client exception: ") + juce::String(ex.what());
