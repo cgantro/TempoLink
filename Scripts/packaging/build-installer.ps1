@@ -21,10 +21,15 @@ $StagingDir = "$PWD\staging-win"
 Write-Host "`n[1/3] CMake Install 실행 중 (의존성 수집)..." -ForegroundColor Yellow
 cmake --install out/build/juce-client-debug --prefix "$StagingDir" --config Debug
 
-# 2.5 OpenSSL DLL 명시적 복사 (런타임 에러 방지)
-Write-Host "`n[1.5/3] OpenSSL DLL 복사 중..." -ForegroundColor Yellow
-if (Test-Path "C:\vcpkg\installed\x64-windows\bin\*.dll") { Copy-Item "C:\vcpkg\installed\x64-windows\bin\*.dll" "$StagingDir" -Force }
-if (Test-Path "C:\Program Files\OpenSSL-Win64\bin\*.dll") { Copy-Item "C:\Program Files\OpenSSL-Win64\bin\*.dll" "$StagingDir" -Force }
+# 2.5 OpenSSL DLL 존재 검증 (수동 복사 대신 install 결과 검증)
+Write-Host "`n[1.5/3] OpenSSL DLL 검증 중..." -ForegroundColor Yellow
+$sslDll = Get-ChildItem -Path $StagingDir -Filter "libssl*.dll" -File -ErrorAction SilentlyContinue
+$cryptoDll = Get-ChildItem -Path $StagingDir -Filter "libcrypto*.dll" -File -ErrorAction SilentlyContinue
+if (-not $sslDll -or -not $cryptoDll) {
+    Write-Error "OpenSSL runtime DLLs are missing in staging directory."
+    Get-ChildItem "$StagingDir" | Format-Table Name, Length, LastWriteTime
+    exit 1
+}
 
 # 3. 환경변수 파일 복사
 Write-Host "`n[2/3] .env.deploy 파일 복사 중..." -ForegroundColor Yellow
