@@ -312,11 +312,11 @@ jobs:
           path: all-artifacts/
           merge-multiple: true
 
-      - name: Prepare deploy payload
+      - name: Prepare installer payload
         shell: bash
         run: |
           VERSION="${{ needs.metadata.outputs.release_version }}"
-          DEST_DIR="deploy-payload/${VERSION}"
+          DEST_DIR="deploy-payload/installer"
           mkdir -p "$DEST_DIR"
 
           find all-artifacts -type f \( -name "*.exe" -o -name "*.pkg" -o -name "*.deb" -o -name "*.sha256" \) \
@@ -335,6 +335,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "deploy-payload/${{ needs.metadata.outputs.release_version }}/*"
-          target: "/home/${{ secrets.SERVER_USER }}/downloads/${{ needs.metadata.outputs.release_version }}"
+          source: "deploy-payload/installer/*"
+          target: "/home/${{ secrets.SERVER_USER }}/downloads/${{ needs.metadata.outputs.release_version }}/installer"
+          strip_components: 2
           overwrite: false
