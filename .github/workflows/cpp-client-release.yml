@@ -18,17 +18,9 @@ concurrency:
 
 jobs:
   build:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || matrix.run_on_main
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            run_on_main: true
-          - os: macos-latest
-            run_on_main: false
-          - os: ubuntu-latest
-            run_on_main: false
+      matrix: ${{ fromJSON((startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '{"os":["windows-latest","macos-latest","ubuntu-latest"]}' || '{"os":["windows-latest"]}') }}
     runs-on: ${{ matrix.os }}
 
     steps:
