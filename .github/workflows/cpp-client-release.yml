@@ -2,25 +2,61 @@ name: C++ Client Release
 
 on:
   push:
-    branches:
-      - "main"
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Upload installers to deployment server"
+        required: false
+        default: false
+        type: boolean
+      version:
+        description: "Manual version label (optional, e.g. v0.2.0-rc1)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: cpp-client-release-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  VCPKG_REF: "2026.03.18"
+  VCPKG_ROOT: ${{ github.workspace }}/.vcpkg
+  VCPKG_TRIPLET: x64-windows
+  VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg/archives
+
 jobs:
+  metadata:
+    name: release-metadata
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.meta.outputs.release_version }}
+    steps:
+      - name: Resolve release version
+        id: meta
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="manual-${GITHUB_RUN_NUMBER}"
+          fi
+          echo "release_version=${VERSION}" >> "$GITHUB_OUTPUT"
+
   build:
+    name: release-build (${{ matrix.os }})
+    needs: metadata
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON((startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && '{"os":["windows-latest","macos-latest","ubuntu-latest"]}' || '{"os":["windows-latest"]}') }}
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -41,88 +77,18 @@ jobs:
             libxinerama-dev libxrandr-dev libxrender-dev \
             libwebkit2gtk-4.1-dev libglu1-mesa-dev mesa-common-dev
 
-      - name: Cache vcpkg artifacts (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: |
-            C:/vcpkg/installed
-            C:/vcpkg/packages
-            C:/vcpkg/downloads
-            D:/vcpkg/installed
-            D:/vcpkg/packages
-            D:/vcpkg/downloads
-            C:/Users/runneradmin/AppData/Local/vcpkg/archives
-          key: vcpkg-openssl-x64-windows-2026.03.18-v4
-
-      - name: Install Windows Dependencies
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $rootCandidates = @(
-            $env:VCPKG_ROOT,
-            $env:VCPKG_INSTALLATION_ROOT,
-            (Join-Path ($env:SYSTEMDRIVE ?? "C:") "vcpkg")
-          ) | Where-Object { $_ -and (Test-Path (Join-Path $_ "vcpkg.exe")) }
-
-          if (-not $rootCandidates) {
-            & where.exe vcpkg
-            throw "vcpkg.exe not found on runner"
-          }
-
-          $root = ($rootCandidates[0] -replace '\\','/')
-          "TEMPOLINK_VCPKG_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          $vcpkgExe = Join-Path $root "vcpkg.exe"
-          $registryTag = "2026.03.18"
-          if (Test-Path (Join-Path $root ".git")) {
-            git -C $root fetch --depth 1 origin "refs/tags/$registryTag"
-            git -C $root checkout --force FETCH_HEAD
-          }
-          $feedUrl = "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-          $nugetExe = (& $vcpkgExe fetch nuget | Select-Object -Last 1).Trim()
-
-          & $nugetExe sources Remove -Name GitHubPackages 2>$null | Out-Null
-          & $nugetExe sources Add `
-            -Name GitHubPackages `
-            -Source $feedUrl `
-            -UserName "${{ github.repository_owner }}" `
-            -Password "${{ secrets.GITHUB_TOKEN }}" `
-            -StorePasswordInClearText
-          & $nugetExe setapikey "${{ secrets.GITHUB_TOKEN }}" -Source $feedUrl
-
-          $binarySources = "clear;nuget,$feedUrl,readwrite;default,readwrite"
-          "VCPKG_BINARY_SOURCES=$binarySources" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          $env:VCPKG_BINARY_SOURCES = $binarySources
-
-          & $vcpkgExe install openssl:x64-windows --triplet x64-windows
-
       - name: Install macOS Dependencies
         if: runner.os == 'macOS'
         run: brew install openssl@3
 
-      - name: Setup MSVC (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Cache FetchContent sources
         uses: actions/cache@v4
         with:
-          path: |
-            .cmake_deps
+          path: .cmake_deps
           key: fetchcontent-src-${{ hashFiles('CMakeLists.txt', 'Cpp/Client/JuceApp/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-src-
           enableCrossOsArchive: true
-
-      - name: Cache juceaide (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: |
-            out/build/juce-client-debug/_deps/juce-build/extras/Build/juceaide
-            out/build/juce-client-release/_deps/juce-build/extras/Build/juceaide
-          key: juceaide-windows-msvc-v1
 
       - name: Cache sccache binary
         id: cache-sccache-bin
@@ -158,7 +124,7 @@ jobs:
           echo "SCCACHE_DIR=${{ github.workspace }}/.sccache" >> "$GITHUB_ENV"
           echo "SCCACHE_GHA_ENABLED=false" >> "$GITHUB_ENV"
 
-      - name: Verify and Setup sccache (Windows)
+      - name: Setup sccache environment (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -175,9 +141,50 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .sccache
-          key: sccache-${{ runner.os }}-${{ github.sha }}
+          key: sccache-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Shared/CMakeLists.txt') }}
           restore-keys: |
             sccache-${{ runner.os }}-
+
+      - name: Cache vcpkg artifacts (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.vcpkg/installed
+            ${{ github.workspace }}/.vcpkg/packages
+            ${{ github.workspace }}/.vcpkg/downloads
+            ${{ github.workspace }}/.vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-openssl-v1
+          restore-keys: |
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_REF }}-
+
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $root = "$env:GITHUB_WORKSPACE\.vcpkg"
+          if (-not (Test-Path "$root\.git")) {
+            git clone https://github.com/microsoft/vcpkg.git $root
+          }
+          git -C $root fetch --tags --force
+          git -C $root checkout "refs/tags/${{ env.VCPKG_REF }}"
+          & "$root\bootstrap-vcpkg.bat" -disableMetrics
+          $rootUnix = $root -replace '\\','/'
+          "TEMPOLINK_VCPKG_ROOT=$rootUnix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install Windows Dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vcpkgExe = Join-Path $env:TEMPOLINK_VCPKG_ROOT "vcpkg.exe"
+          if (-not (Test-Path $vcpkgExe)) {
+            throw "vcpkg.exe not found: $vcpkgExe"
+          }
+          & $vcpkgExe install openssl:${{ env.VCPKG_TRIPLET }} --triplet ${{ env.VCPKG_TRIPLET }}
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Start sccache server
         shell: bash
@@ -191,8 +198,8 @@ jobs:
             "-DCMAKE_C_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
             "-DCMAKE_CXX_COMPILER_LAUNCHER=$env:SCCACHE_PATH" `
             "-DCMAKE_TOOLCHAIN_FILE=$env:TEMPOLINK_VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            "-DVCPKG_TARGET_TRIPLET=x64-windows" `
-            "-DOPENSSL_ROOT_DIR=$env:TEMPOLINK_VCPKG_ROOT/installed/x64-windows"
+            "-DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TRIPLET }}" `
+            "-DOPENSSL_ROOT_DIR=$env:TEMPOLINK_VCPKG_ROOT/installed/${{ env.VCPKG_TRIPLET }}"
 
       - name: Configure CMake (macOS/Linux)
         if: runner.os != 'Windows'
@@ -208,24 +215,37 @@ jobs:
       - name: Build C++ Client
         run: cmake --build --preset juce-client-release --config Release --parallel
 
-      - name: Create .env.deploy
+      - name: Smoke test install layout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $StageDir = "$PWD\smoke-stage"
+          cmake --install out/build/juce-client-release --prefix "$StageDir" --config Release
+          $ExePath = Join-Path $StageDir "TempoLink JUCE Client.exe"
+          if (-not (Test-Path $ExePath)) {
+            throw "Expected installed executable was not found: $ExePath"
+          }
+          $sslDll = Get-ChildItem -Path $StageDir -Filter "libssl*.dll" -File -ErrorAction SilentlyContinue
+          $cryptoDll = Get-ChildItem -Path $StageDir -Filter "libcrypto*.dll" -File -ErrorAction SilentlyContinue
+          if (-not $sslDll -or -not $cryptoDll) {
+            throw "Expected OpenSSL runtime DLLs are missing in smoke-stage."
+          }
+
+      - name: Smoke test install layout (macOS/Linux)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          echo "TEMPOLINK_CONTROL_PLANE_BASE_URL=${{ secrets.TEMPOLINK_CONTROL_PLANE_BASE_URL }}" > .env.deploy
-          echo "TEMPOLINK_CONTROL_PLANE_HOST=${{ secrets.TEMPOLINK_CONTROL_PLANE_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_CONTROL_PLANE_PORT=${{ secrets.TEMPOLINK_CONTROL_PLANE_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_DEFAULT_RELAY_HOST=${{ secrets.TEMPOLINK_DEFAULT_RELAY_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_DEFAULT_RELAY_PORT=${{ secrets.TEMPOLINK_DEFAULT_RELAY_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_OAUTH_CALLBACK_HOST=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_OAUTH_CALLBACK_PORT=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_OAUTH_CALLBACK_PATH=${{ secrets.TEMPOLINK_OAUTH_CALLBACK_PATH }}" >> .env.deploy
-          echo "TEMPOLINK_BRIDGE_HOST=${{ secrets.TEMPOLINK_BRIDGE_HOST }}" >> .env.deploy
-          echo "TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_CLIENT_LISTEN_PORT }}" >> .env.deploy
-          echo "TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT=${{ secrets.TEMPOLINK_BRIDGE_PLUGIN_LISTEN_PORT }}" >> .env.deploy
+          STAGE_DIR="$PWD/smoke-stage"
+          cmake --install out/build/juce-client-release --prefix "$STAGE_DIR"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            test -d "$STAGE_DIR/TempoLink JUCE Client.app"
+          else
+            test -f "$STAGE_DIR/bin/TempoLink JUCE Client"
+          fi
 
       - name: Package Windows (Inno Setup)
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: pwsh
         run: |
           $ISCC = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
           if (-not $ISCC) { $ISCC = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" }
@@ -233,15 +253,9 @@ jobs:
           $OutDir = "$PWD\installer-output"
           $IssPath = "$PWD\scripts\packaging\TempoLink.iss"
           if (-not (Test-Path $IssPath)) { throw "Inno script not found: $IssPath" }
+          if (-not (Test-Path "$PWD\.env.deploy")) { throw ".env.deploy is required for packaging." }
           cmake --install out/build/juce-client-release --prefix "$StagingDir" --config Release
           Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
-          $sslDll = Get-ChildItem -Path $StagingDir -Filter "libssl*.dll" -File -ErrorAction SilentlyContinue
-          $cryptoDll = Get-ChildItem -Path $StagingDir -Filter "libcrypto*.dll" -File -ErrorAction SilentlyContinue
-          if (-not $sslDll -or -not $cryptoDll) {
-            Write-Error "OpenSSL runtime DLLs are missing in staging-win. Expected libssl*.dll and libcrypto*.dll."
-            Get-ChildItem -Path $StagingDir -File | Select-Object Name,Length | Format-Table -AutoSize
-            exit 1
-          }
           & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" $IssPath
 
       - name: Package (CPack)
@@ -251,24 +265,41 @@ jobs:
           cd out/build/juce-client-release
           cpack -C Release
 
-      - name: Organize Artifacts
+      - name: Organize Artifacts with checksums
         shell: bash
         run: |
-          mkdir -p final-artifacts
-          if [ "$RUNNER_OS" = "Windows" ]; then find installer-output -type f -name "*.exe" -exec cp {} final-artifacts/ \;
-          elif [ "$RUNNER_OS" = "macOS" ]; then find . -type f -name "TempoLink-Installer.pkg" -exec cp {} final-artifacts/ \;
-          elif [ "$RUNNER_OS" = "Linux" ]; then find . -type f -name "TempoLink-Installer.deb" -exec cp {} final-artifacts/ \;
+          VERSION="${{ needs.metadata.outputs.release_version }}"
+          DEST_DIR="final-artifacts/${VERSION}/${RUNNER_OS}"
+          mkdir -p "$DEST_DIR"
+
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ARTIFACT_PATH="installer-output/TempoLink-Installer.exe"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            ARTIFACT_PATH="out/build/juce-client-release/TempoLink-Installer.pkg"
+          else
+            ARTIFACT_PATH="out/build/juce-client-release/TempoLink-Installer.deb"
+          fi
+
+          test -f "$ARTIFACT_PATH"
+          cp "$ARTIFACT_PATH" "$DEST_DIR/"
+
+          FILE_NAME="$(basename "$ARTIFACT_PATH")"
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd "$DEST_DIR" && sha256sum "$FILE_NAME" > "${FILE_NAME}.sha256")
+          else
+            (cd "$DEST_DIR" && shasum -a 256 "$FILE_NAME" > "${FILE_NAME}.sha256")
           fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: client-installer-${{ matrix.os }}
-          path: final-artifacts/*
+          path: final-artifacts/${{ needs.metadata.outputs.release_version }}/**
 
   deploy:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: build
+    name: release-deploy
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
+    needs: [metadata, build]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
@@ -282,6 +313,6 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "all-artifacts/**/TempoLink-Installer.*"
-          target: "/home/${{ secrets.SERVER_USER }}/downloads"
-          strip_components: 2
+          source: "all-artifacts/**/${{ needs.metadata.outputs.release_version }}/**"
+          target: "/home/${{ secrets.SERVER_USER }}/downloads/${{ needs.metadata.outputs.release_version }}"
+          overwrite: false
