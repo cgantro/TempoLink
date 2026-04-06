@@ -22,9 +22,12 @@ runs:
         restore-keys: |
           vcpkg-${{ runner.os }}-${{ inputs.triplet }}-
 
-    - name: Bootstrap vcpkg from pinned baseline
+    - name: Bootstrap vcpkg from manifest configuration
       shell: pwsh
       run: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
+
         $manifestPath = Join-Path $env:GITHUB_WORKSPACE "vcpkg.json"
         if (-not (Test-Path $manifestPath)) {
           throw "vcpkg manifest not found: $manifestPath"
@@ -41,17 +44,46 @@ runs:
         }
 
         $root = "$env:GITHUB_WORKSPACE\.vcpkg"
+        New-Item -ItemType Directory -Force -Path $root | Out-Null
+
         if (-not (Test-Path "$root\.git")) {
-          git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git $root
+          git -C $root init
         }
-        git -C $root fetch --depth 1 origin $baseline
-        git -C $root checkout FETCH_HEAD
+
+        $remotes = git -C $root remote
+        if ($remotes -match '^origin$') {
+          git -C $root remote set-url origin https://github.com/microsoft/vcpkg.git
+        } else {
+          git -C $root remote add origin https://github.com/microsoft/vcpkg.git
+        }
+
+        $fetched = $false
+        foreach ($ref in @("refs/heads/master", "refs/heads/main")) {
+          try {
+            git -C $root fetch --depth 1 origin $ref
+            git -C $root checkout -B tempolink-vcpkg FETCH_HEAD
+            git -C $root reset --hard FETCH_HEAD
+            $fetched = $true
+            break
+          } catch {
+            Write-Host "Failed to fetch $ref, trying next ref..."
+          }
+        }
+
+        if (-not $fetched) {
+          throw "Unable to fetch vcpkg source from origin/master or origin/main."
+        }
+
+        $bootstrapBat = Join-Path $root "bootstrap-vcpkg.bat"
+        if (-not (Test-Path $bootstrapBat)) {
+          throw "bootstrap-vcpkg.bat not found after fetching vcpkg sources at $root"
+        }
 
         $binaryCache = Join-Path $root "archives"
         New-Item -ItemType Directory -Force -Path $binaryCache | Out-Null
         "VCPKG_DEFAULT_BINARY_CACHE=$binaryCache" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-        & "$root\bootstrap-vcpkg.bat" -disableMetrics
+        & $bootstrapBat -disableMetrics
 
         $rootUnix = $root -replace '\\','/'
         "TEMPOLINK_VCPKG_ROOT=$rootUnix" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
