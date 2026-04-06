@@ -1,6 +1,8 @@
 {
   "cmake.useCMakePresets": "always",
   "cmake.useVsDeveloperEnvironment": "always",
+  "cmake.defaultConfigurePreset": "juce-client-debug-win",
+  "cmake.defaultBuildPreset": "juce-client-debug-win",
   "cmake.configureOnOpen": false,
   "cmake.buildBeforeRun": false,
   "cmake.parallelJobs": 8,

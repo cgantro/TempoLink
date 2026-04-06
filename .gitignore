@@ -19,3 +19,4 @@ SpringBoot/ControlPlaneService/.gradle/
 
 # CMake FetchContent Cache
 .cmake_deps/
+.vcpkg/

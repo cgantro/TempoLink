@@ -20,19 +20,6 @@ if(SCCACHE_PROGRAM)
 endif()
 
 # --- 의존성 관리 (FetchContent & System Packages) ---
-# Windows 환경에서 기본 OpenSSL 설치 경로(Chocolatey 등)를 자동으로 찾도록 설정
-if (WIN32 AND NOT DEFINED OPENSSL_ROOT_DIR AND NOT DEFINED ENV{OPENSSL_ROOT_DIR})
-    if (EXISTS "C:/vcpkg/installed/x64-windows")
-        set(OPENSSL_ROOT_DIR "C:/vcpkg/installed/x64-windows")
-    elseif (EXISTS "C:/vcpkg/installed/x64-windows-static")
-        set(OPENSSL_ROOT_DIR "C:/vcpkg/installed/x64-windows-static")
-    elseif (EXISTS "C:/Program Files/OpenSSL-Win64")
-        set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
-    elseif (EXISTS "C:/Program Files/OpenSSL-Win32")
-        set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win32")
-    endif()
-endif()
-
 find_package(OpenSSL REQUIRED)
 
 include(FetchContent)

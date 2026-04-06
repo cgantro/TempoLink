@@ -1,0 +1,24 @@
+name: "Configure and Build Ubuntu"
+description: "Configure and build CMake preset on Ubuntu/Linux"
+
+inputs:
+  preset:
+    description: "CMake preset name"
+    required: true
+  configure-args:
+    description: "Extra configure args"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure CMake (Ubuntu)
+      shell: bash
+      run: |
+        cmake --preset "${{ inputs.preset }}" ${{ inputs.configure-args }}
+
+    - name: Build (Ubuntu)
+      shell: bash
+      run: |
+        cmake --build --preset "${{ inputs.preset }}" --parallel

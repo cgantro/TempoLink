@@ -1,0 +1,22 @@
+include_guard(GLOBAL)
+
+function(tempolink_configure_packaging)
+  set(CPACK_PACKAGE_NAME "TempoLink")
+  set(CPACK_PACKAGE_VENDOR "TempoLink Team")
+  set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "TempoLink Realtime Audio Client")
+
+  if(UNIX AND NOT APPLE)
+    set(CPACK_GENERATOR "DEB")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "TempoLink Team <contact@tempolink.o-r.kr>")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_PACKAGE_FILE_NAME "TempoLink-Installer")
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+  elseif(APPLE)
+    set(CPACK_GENERATOR "productbuild")
+    set(CPACK_PACKAGE_FILE_NAME "TempoLink-Installer")
+  endif()
+
+  include(CPack)
+endfunction()

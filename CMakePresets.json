@@ -26,27 +26,8 @@
         "rhs": "Windows"
       },
       "cacheVariables": {
-        "OPENSSL_ROOT_DIR": "C:/Program Files/OpenSSL-Win64"
-      }
-    },
-    {
-      "name": "base-linux-ninja",
-      "hidden": true,
-      "inherits": "base-ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      }
-    },
-    {
-      "name": "base-macos-ninja",
-      "hidden": true,
-      "inherits": "base-ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/.vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
       }
     },
     {
@@ -55,26 +36,6 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "TEMPOLINK_BUILD_CLIENT": "ON"
-      }
-    },
-    {
-      "name": "full-debug",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_CLIENT": "ON",
-        "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF"
-      }
-    },
-    {
-      "name": "full-debug-with-codecs",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_CLIENT": "ON",
-        "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF",
-        "TEMPOLINK_ENABLE_BOOST": "ON",
-        "TEMPOLINK_ENABLE_OPUS": "ON"
       }
     },
     {
@@ -98,32 +59,20 @@
       }
     },
     {
-      "name": "client-debug-win",
-      "inherits": ["base-win-ninja", "client-debug"]
+      "name": "juce-client-debug-win",
+      "inherits": ["base-win-ninja", "juce-client-debug"],
+      "binaryDir": "${sourceDir}/out/build/juce-client-debug"
     },
     {
-      "name": "client-debug-linux",
-      "inherits": ["base-linux-ninja", "client-debug"]
-    },
-    {
-      "name": "client-debug-macos",
-      "inherits": ["base-macos-ninja", "client-debug"]
+      "name": "juce-client-release-win",
+      "inherits": ["base-win-ninja", "juce-client-release"],
+      "binaryDir": "${sourceDir}/out/build/juce-client-release"
     }
   ],
   "buildPresets": [
     {
       "name": "client-debug",
       "configurePreset": "client-debug",
-      "jobs": 0
-    },
-    {
-      "name": "full-debug",
-      "configurePreset": "full-debug",
-      "jobs": 0
-    },
-    {
-      "name": "full-debug-with-codecs",
-      "configurePreset": "full-debug-with-codecs",
       "jobs": 0
     },
     {
@@ -137,16 +86,14 @@
       "jobs": 0
     },
     {
-      "name": "client-debug-win",
-      "configurePreset": "client-debug-win"
+      "name": "juce-client-debug-win",
+      "configurePreset": "juce-client-debug-win",
+      "jobs": 0
     },
     {
-      "name": "client-debug-linux",
-      "configurePreset": "client-debug-linux"
-    },
-    {
-      "name": "client-debug-macos",
-      "configurePreset": "client-debug-macos"
+      "name": "juce-client-release-win",
+      "configurePreset": "juce-client-release-win",
+      "jobs": 0
     }
   ]
 }
