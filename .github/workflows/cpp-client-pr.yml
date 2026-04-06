@@ -3,11 +3,6 @@ name: C++ Client PR Check
 on:
   pull_request:
     branches: ["main"]
-    paths:
-      - "Cpp/**"
-      - "CMakeLists.txt"
-      - "CMakePresets.json"
-      - ".github/workflows/cpp-client-pr.yml"
 
 permissions:
   contents: read
