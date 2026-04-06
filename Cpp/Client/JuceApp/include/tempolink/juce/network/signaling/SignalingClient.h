@@ -33,9 +33,12 @@ class SignalingClient {
   explicit SignalingClient(
       std::unique_ptr<tempolink::juceapp::network::IWebSocketTransport> transport);
 
-  /// Default constructor — creates JuceWebSocketTransport.
+  /// Default constructor — creates plain/tls transport based on configured mode.
   SignalingClient();
   ~SignalingClient();
+
+  void setUseTls(bool enabled);
+  bool useTls() const;
 
   bool connect(const std::string& host, int port, const std::string& room_code,
                const std::string& user_id, EventCallback callback);
@@ -54,8 +57,11 @@ class SignalingClient {
   bool sendEnvelope(const juce::String& type,
                     const std::string& to_user_id,
                     std::optional<std::uint64_t> sent_at_ms);
+  void resetTransportForCurrentMode();
 
   std::unique_ptr<tempolink::juceapp::network::IWebSocketTransport> transport_;
+  bool uses_external_transport_ = false;
+  bool use_tls_ = false;
   std::mutex callback_mutex_;
   EventCallback callback_;
   std::string room_code_;

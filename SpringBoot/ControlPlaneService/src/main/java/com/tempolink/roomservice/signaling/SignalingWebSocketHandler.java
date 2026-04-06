@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tempolink.roomservice.dto.RoomResponse;
 import com.tempolink.roomservice.service.RoomService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -22,13 +24,17 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
   private final ObjectMapper objectMapper;
   private final RoomService roomService;
   private final SignalingSessionRegistry sessionRegistry;
+  private final long sessionIdleTimeoutMillis;
 
   public SignalingWebSocketHandler(ObjectMapper objectMapper,
                                    RoomService roomService,
-                                   SignalingSessionRegistry sessionRegistry) {
+                                   SignalingSessionRegistry sessionRegistry,
+                                   @Value("${tempolink.signaling.session-idle-timeout-ms:30000}")
+                                   long sessionIdleTimeoutMillis) {
     this.objectMapper = objectMapper;
     this.roomService = roomService;
     this.sessionRegistry = sessionRegistry;
+    this.sessionIdleTimeoutMillis = sessionIdleTimeoutMillis;
   }
 
   @Override
@@ -76,6 +82,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
       session.close(CloseStatus.POLICY_VIOLATION.withReason("session not registered"));
       return;
     }
+    sessionRegistry.touch(session.getId());
 
     final SignalingEnvelope incoming;
     try {
@@ -113,17 +120,47 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
   @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws IOException {
-    SignalingSessionRegistry.SessionContext source = sessionRegistry.findBySessionId(session.getId());
+    SignalingSessionRegistry.SessionContext source = sessionRegistry.unregister(session.getId());
     if (source == null) {
       return;
     }
-    sessionRegistry.unregister(session.getId());
+    leaveRoomAndBroadcastPeerLeft(source, session.getId());
+  }
+
+  @Scheduled(fixedDelayString = "${tempolink.signaling.cleanup-interval-ms:10000}")
+  public void cleanupStaleSessions() {
+    List<SignalingSessionRegistry.SessionContext> staleSessions =
+        sessionRegistry.findStaleSessions(sessionIdleTimeoutMillis);
+    for (SignalingSessionRegistry.SessionContext stale : staleSessions) {
+      SignalingSessionRegistry.SessionContext removed =
+          sessionRegistry.unregister(stale.sessionId());
+      if (removed == null) {
+        continue;
+      }
+      try {
+        if (removed.session().isOpen()) {
+          removed.session().close(CloseStatus.GOING_AWAY.withReason("session timeout"));
+        }
+      } catch (IOException ignored) {
+        // Ignore socket close errors and continue with room cleanup.
+      }
+
+      try {
+        leaveRoomAndBroadcastPeerLeft(removed, removed.sessionId());
+      } catch (IOException ignored) {
+        // Best-effort cleanup; next state refresh will reconcile participants.
+      }
+    }
+  }
+
+  private void leaveRoomAndBroadcastPeerLeft(SignalingSessionRegistry.SessionContext source,
+                                             String excludeSessionId) throws IOException {
     try {
       roomService.leave(source.roomCode(), source.userId());
     } catch (RuntimeException ignored) {
       // Room may already be removed or not found; signaling close should still proceed.
     }
-    broadcastToRoom(source.roomCode(), session.getId(), new SignalingEnvelope(
+    broadcastToRoom(source.roomCode(), excludeSessionId, new SignalingEnvelope(
         "peer.left",
         source.roomCode(),
         source.userId(),

@@ -95,7 +95,7 @@ jobs:
         uses: ./.github/actions/setup-windows-sccache
         with:
           version: "0.14.0"
-          cache-key: ${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Shared/CMakeLists.txt') }}
+          cache-key: ${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Client/JuceApp/cmake/TempolinkCommon.cmake') }}
 
       - name: Setup Windows vcpkg
         if: runner.os == 'Windows'

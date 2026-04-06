@@ -9,6 +9,13 @@
 #include "tempolink/juce/constants/ClientText.h"
 #include "tempolink/juce/bridge/AudioSessionService.h"
 
+namespace {
+bool IsHttpsBaseUrl(const std::string& base_url) {
+  constexpr const char* kHttpsPrefix = "https://";
+  return base_url.rfind(kHttpsPrefix, 0) == 0;
+}
+}  // namespace
+
 ClientAppPresenter::ClientAppPresenter(
     tempolink::juceapp::di::ViewRegistry views,
     tempolink::juceapp::di::DependencyContainer& deps)
@@ -83,6 +90,10 @@ ClientAppPresenter::ClientAppPresenter(
   deps_.default_relay_port = env_config.default_relay_port;
   status_context_.control_plane_host = env_config.control_plane_host;
   status_context_.control_plane_port = env_config.control_plane_port;
+  status_context_.control_plane_use_tls =
+      IsHttpsBaseUrl(env_config.control_plane_base_url) ||
+      env_config.control_plane_port == 443;
+  deps_.signaling_client.setUseTls(status_context_.control_plane_use_tls);
   status_context_.default_relay_host = env_config.default_relay_host;
   status_context_.default_relay_port = env_config.default_relay_port;
   oauth_callback_host_ = env_config.oauth_callback_host;

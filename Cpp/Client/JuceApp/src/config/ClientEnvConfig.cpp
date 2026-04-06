@@ -9,7 +9,6 @@
 #include <juce_core/juce_core.h>
 
 #include "tempolink/bridge/UdpBridgeProtocol.h"
-#include "tempolink/config/NetworkConstants.h"
 #include "tempolink/juce/constants/AuthConstants.h"
 
 namespace tempolink::juceapp::config {
@@ -180,20 +179,20 @@ ClientEnvConfig ClientEnvConfig::Load() {
 
   config.control_plane_base_url =
       ReadString(dotenv, "TEMPOLINK_CONTROL_PLANE_BASE_URL",
-                 tempolink::config::kDefaultControlPlaneBaseUrl);
+                 ClientEnvConfig::kDefaultControlPlaneBaseUrl);
   config.control_plane_host =
       ReadString(dotenv, "TEMPOLINK_CONTROL_PLANE_HOST",
-                 tempolink::config::kDefaultControlPlaneHost);
+                 ClientEnvConfig::kDefaultControlPlaneHost);
   config.control_plane_port =
       ReadPort(dotenv, "TEMPOLINK_CONTROL_PLANE_PORT",
-               tempolink::config::kDefaultControlPlanePort);
+               ClientEnvConfig::kDefaultControlPlanePort);
 
   config.default_relay_host =
       ReadString(dotenv, "TEMPOLINK_DEFAULT_RELAY_HOST",
-                 tempolink::config::kDefaultRelayHost);
+                 ClientEnvConfig::kDefaultRelayHost);
   config.default_relay_port =
       ReadPort(dotenv, "TEMPOLINK_DEFAULT_RELAY_PORT",
-               tempolink::config::kDefaultRelayPort);
+               ClientEnvConfig::kDefaultRelayPort);
 
   config.oauth_callback_host =
       ReadString(dotenv, "TEMPOLINK_OAUTH_CALLBACK_HOST",

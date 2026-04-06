@@ -4,7 +4,7 @@
 #include <string>
 
 #include "tempolink/client/ClientSession.h"
-#include "tempolink/config/NetworkConstants.h"
+#include "tempolink/juce/config/ClientEnvConfig.h"
 #include "tempolink/juce/network/auth/AuthApiClient.h"
 #include "tempolink/juce/network/auth/OAuthCallbackServer.h"
 #include "tempolink/juce/network/http/common/DocumentContentService.h"
@@ -22,11 +22,16 @@ namespace tempolink::juceapp::di {
 /// Eliminates the need for each controller to know concrete types.
 struct DependencyContainer {
   // --- Configuration (loaded from env) ---
-  std::string control_plane_base_url = tempolink::config::kDefaultControlPlaneBaseUrl;
-  std::string control_plane_host = tempolink::config::kDefaultControlPlaneHost;
-  std::uint16_t control_plane_port = tempolink::config::kDefaultControlPlanePort;
-  std::string default_relay_host = tempolink::config::kDefaultRelayHost;
-  std::uint16_t default_relay_port = tempolink::config::kDefaultRelayPort;
+  std::string control_plane_base_url =
+      tempolink::juceapp::config::ClientEnvConfig::kDefaultControlPlaneBaseUrl;
+  std::string control_plane_host =
+      tempolink::juceapp::config::ClientEnvConfig::kDefaultControlPlaneHost;
+  std::uint16_t control_plane_port =
+      tempolink::juceapp::config::ClientEnvConfig::kDefaultControlPlanePort;
+  std::string default_relay_host =
+      tempolink::juceapp::config::ClientEnvConfig::kDefaultRelayHost;
+  std::uint16_t default_relay_port =
+      tempolink::juceapp::config::ClientEnvConfig::kDefaultRelayPort;
 
   // --- Core domain ---
   tempolink::client::ClientSession session;

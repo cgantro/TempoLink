@@ -146,7 +146,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .sccache
-          key: sccache-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Shared/CMakeLists.txt') }}
+          key: sccache-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Client/JuceApp/cmake/TempolinkCommon.cmake') }}
           restore-keys: |
             sccache-${{ runner.os }}-
 
@@ -155,7 +155,7 @@ jobs:
         uses: ./.github/actions/setup-windows-sccache
         with:
           version: "0.14.0"
-          cache-key: ${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Shared/CMakeLists.txt') }}
+          cache-key: ${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'Cpp/Client/JuceApp/CMakeLists.txt', 'Cpp/Client/RealtimeCore/CMakeLists.txt', 'Cpp/Client/JuceApp/cmake/TempolinkCommon.cmake') }}
 
       - name: Setup Windows vcpkg
         if: runner.os == 'Windows'
@@ -220,6 +220,53 @@ jobs:
             test -f "$STAGE_DIR/bin/TempoLink JUCE Client"
           fi
 
+      - name: Setup Windows code signing certificate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TEMPOLINK_WIN_CODESIGN_PFX_B64: ${{ secrets.TEMPOLINK_WIN_CODESIGN_PFX_B64 }}
+          WINDOWS_CODESIGN_PFX_B64: ${{ secrets.WINDOWS_CODESIGN_PFX_B64 }}
+          WIN_CODESIGN_CERT_B64: ${{ secrets.WIN_CODESIGN_CERT_B64 }}
+          TEMPOLINK_WIN_CODESIGN_PFX_PASSWORD: ${{ secrets.TEMPOLINK_WIN_CODESIGN_PFX_PASSWORD }}
+          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+          WIN_CODESIGN_CERT_PASSWORD: ${{ secrets.WIN_CODESIGN_CERT_PASSWORD }}
+          WIN_CODESIGN_TIMESTAMP_URL_VAR: ${{ vars.WIN_CODESIGN_TIMESTAMP_URL }}
+        run: |
+          $pfxBase64 = @(
+            $env:TEMPOLINK_WIN_CODESIGN_PFX_B64,
+            $env:WINDOWS_CODESIGN_PFX_B64,
+            $env:WIN_CODESIGN_CERT_B64
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+
+          $pfxPassword = @(
+            $env:TEMPOLINK_WIN_CODESIGN_PFX_PASSWORD,
+            $env:WINDOWS_CODESIGN_PFX_PASSWORD,
+            $env:WIN_CODESIGN_CERT_PASSWORD
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+
+          if ([string]::IsNullOrWhiteSpace($pfxBase64) -or [string]::IsNullOrWhiteSpace($pfxPassword)) {
+            Write-Host "Windows code-signing cert/password not configured. Skipping signing." -ForegroundColor Yellow
+            "TEMPOLINK_CODESIGN_ENABLED=false" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            exit 0
+          }
+
+          $certPath = Join-Path $env:RUNNER_TEMP "tempolink-codesign.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($pfxBase64))
+          if (-not (Test-Path $certPath)) {
+            throw "Failed to materialize code-signing certificate: $certPath"
+          }
+
+          $timestampUrl = if ([string]::IsNullOrWhiteSpace($env:WIN_CODESIGN_TIMESTAMP_URL_VAR)) {
+            "http://timestamp.digicert.com"
+          } else {
+            $env:WIN_CODESIGN_TIMESTAMP_URL_VAR
+          }
+
+          "TEMPOLINK_CODESIGN_ENABLED=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TEMPOLINK_CODESIGN_CERT_PATH=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TEMPOLINK_CODESIGN_CERT_PASSWORD=$pfxPassword" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TEMPOLINK_CODESIGN_TIMESTAMP_URL=$timestampUrl" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Materialize .env.deploy from GitHub Variables/Secrets
         if: runner.os == 'Windows'
         shell: pwsh
@@ -248,6 +295,27 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          function Resolve-SignTool {
+            $cmd = Get-Command signtool.exe -ErrorAction SilentlyContinue
+            if ($cmd) { return $cmd.Source }
+            $candidates = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match "\\x64\\signtool\.exe$" } |
+              Sort-Object FullName -Descending
+            if ($candidates.Count -gt 0) { return $candidates[0].FullName }
+            return $null
+          }
+
+          function Sign-FileIfEnabled([string]$filePath) {
+            if ($env:TEMPOLINK_CODESIGN_ENABLED -ne "true") { return }
+            if (-not (Test-Path $filePath)) { throw "File to sign not found: $filePath" }
+            $signtool = Resolve-SignTool
+            if (-not $signtool) { throw "signtool.exe not found on runner." }
+            & $signtool sign /fd SHA256 /td SHA256 /tr "$env:TEMPOLINK_CODESIGN_TIMESTAMP_URL" /f "$env:TEMPOLINK_CODESIGN_CERT_PATH" /p "$env:TEMPOLINK_CODESIGN_CERT_PASSWORD" "$filePath"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Code signing failed for: $filePath"
+            }
+          }
+
           $ISCC = Get-Command iscc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
           if (-not $ISCC) { $ISCC = "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" }
           $StagingDir = "$PWD\staging-win"
@@ -260,7 +328,30 @@ jobs:
           } else {
             Write-Host ".env.deploy not found. Continuing without deploy env file." -ForegroundColor Yellow
           }
+          Sign-FileIfEnabled (Join-Path $StagingDir "TempoLink JUCE Client.exe")
           & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" $IssPath
+          Sign-FileIfEnabled (Join-Path $OutDir "TempoLink-Installer.exe")
+
+      - name: Verify Windows signatures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ($env:TEMPOLINK_CODESIGN_ENABLED -ne "true") {
+            Write-Host "Code signing disabled. Skipping signature verification." -ForegroundColor Yellow
+            exit 0
+          }
+          $targets = @(
+            "$PWD\staging-win\TempoLink JUCE Client.exe",
+            "$PWD\installer-output\TempoLink-Installer.exe"
+          )
+          foreach ($target in $targets) {
+            if (-not (Test-Path $target)) { throw "Missing signed target: $target" }
+            $sig = Get-AuthenticodeSignature $target
+            if ($sig.Status -ne "Valid") {
+              throw "Invalid code signature ($($sig.Status)) for $target"
+            }
+            Write-Host "Signature valid: $target"
+          }
 
       - name: Package (CPack)
         if: runner.os != 'Windows'

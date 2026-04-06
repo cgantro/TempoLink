@@ -17,13 +17,21 @@ public class SignalingSessionRegistry {
   }
 
   private final ConcurrentMap<String, SessionContext> sessionsById = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, Long> lastSeenMillisBySessionId = new ConcurrentHashMap<>();
 
   public void register(WebSocketSession session, String roomCode, String userId) {
-    sessionsById.put(session.getId(), new SessionContext(session.getId(), roomCode, userId, session));
+    final String sessionId = session.getId();
+    sessionsById.put(sessionId, new SessionContext(sessionId, roomCode, userId, session));
+    touch(sessionId);
   }
 
-  public void unregister(String sessionId) {
-    sessionsById.remove(sessionId);
+  public SessionContext unregister(String sessionId) {
+    lastSeenMillisBySessionId.remove(sessionId);
+    return sessionsById.remove(sessionId);
+  }
+
+  public void touch(String sessionId) {
+    lastSeenMillisBySessionId.put(sessionId, System.currentTimeMillis());
   }
 
   public SessionContext findBySessionId(String sessionId) {
@@ -55,5 +63,20 @@ public class SignalingSessionRegistry {
         .map(SessionContext::userId)
         .collect(Collectors.toSet());
   }
-}
 
+  public List<SessionContext> findStaleSessions(long idleTimeoutMillis) {
+    final long now = System.currentTimeMillis();
+    List<SessionContext> stale = new ArrayList<>();
+    for (SessionContext context : sessionsById.values()) {
+      final Long lastSeen = lastSeenMillisBySessionId.get(context.sessionId());
+      if (lastSeen == null) {
+        stale.add(context);
+        continue;
+      }
+      if (now - lastSeen >= idleTimeoutMillis) {
+        stale.add(context);
+      }
+    }
+    return stale;
+  }
+}

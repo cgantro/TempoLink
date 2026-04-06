@@ -12,17 +12,16 @@
 
 #include "tempolink/net/Packet.h"
 #include "tempolink/net/UdpSocket.h"
-#include "tempolink/config/NetworkConstants.h"
 
 namespace tempolink::client {
 
 class ClientTransport {
  public:
   struct Endpoint {
-    std::string server_host = tempolink::config::kDefaultRelayHost;
-    std::uint16_t server_port = tempolink::config::kDefaultRelayPort;
-    std::uint32_t room_id = tempolink::config::kDefaultRoomId;
-    std::uint32_t participant_id = tempolink::config::kDefaultParticipantId;
+    std::string server_host;
+    std::uint16_t server_port = 0;
+    std::uint32_t room_id = 0;
+    std::uint32_t participant_id = 0;
   };
 
   bool Start(const Endpoint& endpoint);

@@ -32,7 +32,7 @@ class IWebSocketTransport {
 
   /// Open a WebSocket connection (performs handshake).
   virtual bool Connect(const std::string& host, int port,
-                       const std::string& path) = 0;
+                       const std::string& path, bool use_tls = false) = 0;
 
   /// Close the WebSocket connection.
   virtual void Disconnect() = 0;

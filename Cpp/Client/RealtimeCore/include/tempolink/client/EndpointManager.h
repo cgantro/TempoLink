@@ -7,17 +7,15 @@
 #include <unordered_map>
 #include <vector>
 
-#include "tempolink/config/NetworkConstants.h"
-
 namespace tempolink::client {
 
 struct EndpointProfile {
-  std::string profile_name = tempolink::config::kDefaultEndpointProfileName;
-  std::string server_host = tempolink::config::kDefaultRelayHost;
-  std::uint16_t server_port = tempolink::config::kDefaultRelayPort;
-  std::uint32_t room_id = tempolink::config::kDefaultRoomId;
-  std::uint32_t participant_id = tempolink::config::kDefaultParticipantId;
-  std::string nickname = tempolink::config::kDefaultNickname;
+  std::string profile_name = "default";
+  std::string server_host;
+  std::uint16_t server_port = 0;
+  std::uint32_t room_id = 0;
+  std::uint32_t participant_id = 0;
+  std::string nickname = "guest";
 };
 
 class EndpointManager {

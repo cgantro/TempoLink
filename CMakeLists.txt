@@ -56,7 +56,7 @@ if(TEMPOLINK_ENABLE_OPUS)
     )
     FetchContent_MakeAvailable(opus)
     
-    # Shared 모듈의 OpusCodec이 활성화되도록 전역 매크로 정의
+    # common 라이브러리의 OpusCodec이 활성화되도록 전역 매크로 정의
     add_compile_definitions(TEMPOLINK_HAS_OPUS)
 endif()
 

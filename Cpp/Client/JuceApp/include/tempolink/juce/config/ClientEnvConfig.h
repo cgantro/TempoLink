@@ -6,6 +6,18 @@
 namespace tempolink::juceapp::config {
 
 struct ClientEnvConfig {
+  static constexpr const char* kDefaultControlPlaneBaseUrl = "http://127.0.0.1:8080";
+  static constexpr const char* kDefaultControlPlaneHost = "127.0.0.1";
+  static constexpr std::uint16_t kDefaultControlPlanePort = 8080;
+
+  static constexpr const char* kDefaultRelayHost = "127.0.0.1";
+  static constexpr std::uint16_t kDefaultRelayPort = 40000;
+
+  static constexpr std::uint32_t kDefaultRoomId = 1;
+  static constexpr std::uint32_t kDefaultParticipantId = 1001;
+  static constexpr const char* kDefaultNickname = "guest";
+  static constexpr const char* kDefaultEndpointProfileName = "default";
+
   std::string control_plane_base_url;
   std::string control_plane_host;
   std::uint16_t control_plane_port = 0;

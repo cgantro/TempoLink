@@ -299,7 +299,10 @@ void SessionLifecycleController::OpenRoom(const std::string& room_code,
                                   "Signaling connect failed after media start: host=" +
                                   juce::String(status_context_.control_plane_host) +
                                   ", port=" +
-                                  juce::String(status_context_.control_plane_port));
+                                  juce::String(status_context_.control_plane_port) +
+                                  ", tls=" +
+                                  juce::String(status_context_.control_plane_use_tls ? "true"
+                                                                                      : "false"));
                               if (view_callbacks_.set_session_status_text) {
                                 view_callbacks_.set_session_status_text(
                                     std::string(tempolink::juceapp::text::kMediaConnectedSignalingOffline));
@@ -309,7 +312,10 @@ void SessionLifecycleController::OpenRoom(const std::string& room_code,
                                   "Signaling connect succeeded: host=" +
                                   juce::String(status_context_.control_plane_host) +
                                   ", port=" +
-                                  juce::String(status_context_.control_plane_port));
+                                  juce::String(status_context_.control_plane_port) +
+                                  ", tls=" +
+                                  juce::String(status_context_.control_plane_use_tls ? "true"
+                                                                                      : "false"));
                             }
 
                             if (routing_callbacks_.on_session_started) {

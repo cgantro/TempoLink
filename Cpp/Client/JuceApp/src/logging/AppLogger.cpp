@@ -13,6 +13,29 @@ std::mutex g_logger_mutex;
 std::unique_ptr<juce::FileLogger> g_file_logger;
 juce::String g_current_log_path;
 
+void CleanupOldLogs(const juce::File& dir);
+
+std::unique_ptr<juce::FileLogger> TryCreateLoggerIn(
+    const juce::File& dir,
+    const juce::String& app_name,
+    const juce::String& app_version,
+    juce::String& out_path) {
+  if (!dir.createDirectory()) {
+    return nullptr;
+  }
+  CleanupOldLogs(dir);
+
+  auto logger = std::unique_ptr<juce::FileLogger>(juce::FileLogger::createDateStampedLogger(
+      dir.getFullPathName(), "client", ".log",
+      app_name + " v" + app_version + " session started"));
+  if (logger == nullptr) {
+    return nullptr;
+  }
+
+  out_path = logger->getLogFile().getFullPathName();
+  return logger;
+}
+
 void CleanupOldLogs(const juce::File& dir) {
   juce::Array<juce::File> files;
   dir.findChildFiles(files, juce::File::findFiles, false, "*.log");
@@ -65,18 +88,21 @@ void Initialize(const juce::String& app_name, const juce::String& app_version) {
     return;
   }
 
-  const auto dir = LogDirectory();
-  dir.createDirectory();
-  CleanupOldLogs(dir);
+  juce::Array<juce::File> candidates;
+  candidates.add(LogDirectory());
+  candidates.add(juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+                     .getParentDirectory()
+                     .getChildFile("Logs"));
+  candidates.add(juce::File::getSpecialLocation(juce::File::tempDirectory)
+                     .getChildFile("TempoLink")
+                     .getChildFile("Logs"));
 
-  g_file_logger.reset(juce::FileLogger::createDateStampedLogger(
-      dir.getFullPathName(), "client", ".log",
-      app_name + " v" + app_version + " session started"));
-
-  if (g_file_logger != nullptr) {
-    g_current_log_path = g_file_logger->getLogFile().getFullPathName();
-    g_file_logger->logMessage("[INFO] Log file path: " + g_current_log_path);
-    return;
+  for (const auto& dir : candidates) {
+    g_file_logger = TryCreateLoggerIn(dir, app_name, app_version, g_current_log_path);
+    if (g_file_logger != nullptr) {
+      g_file_logger->logMessage("[INFO] Log file path: " + g_current_log_path);
+      return;
+    }
   }
 
   g_current_log_path = {};

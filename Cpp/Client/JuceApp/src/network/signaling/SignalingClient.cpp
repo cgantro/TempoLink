@@ -8,7 +8,8 @@
 #include "tempolink/juce/constants/ClientText.h"
 #include "tempolink/juce/logging/AppLogger.h"
 #include "tempolink/juce/network/signaling/SignalingEventParser.h"
-#include "tempolink/juce/network/transport/JuceWebSocketTransport.h"
+#include "tempolink/juce/network/transport/PlainWebSocketTransport.h"
+#include "tempolink/juce/network/transport/TlsWebSocketTransport.h"
 
 namespace {
 
@@ -46,20 +47,37 @@ const char* EventTypeToString(SignalingClient::Event::Type type) {
 
 using Transport = tempolink::juceapp::network::IWebSocketTransport;
 
-SignalingClient::SignalingClient()
-    : transport_(std::make_unique<tempolink::juceapp::network::JuceWebSocketTransport>()) {}
+SignalingClient::SignalingClient() { resetTransportForCurrentMode(); }
 
 SignalingClient::SignalingClient(
     std::unique_ptr<tempolink::juceapp::network::IWebSocketTransport> transport)
-    : transport_(std::move(transport)) {}
+    : transport_(std::move(transport)), uses_external_transport_(true) {}
 
 SignalingClient::~SignalingClient() { disconnect(); }
+
+void SignalingClient::setUseTls(bool enabled) {
+  if (use_tls_ == enabled) {
+    return;
+  }
+  use_tls_ = enabled;
+  if (uses_external_transport_) {
+    return;
+  }
+  if (!isConnected()) {
+    resetTransportForCurrentMode();
+  }
+}
+
+bool SignalingClient::useTls() const { return use_tls_; }
 
 bool SignalingClient::connect(const std::string& host, int port,
                               const std::string& room_code,
                               const std::string& user_id,
                               EventCallback callback) {
   disconnect();
+  if (!uses_external_transport_) {
+    resetTransportForCurrentMode();
+  }
   {
     std::lock_guard<std::mutex> lock(callback_mutex_);
     callback_ = std::move(callback);
@@ -75,9 +93,11 @@ bool SignalingClient::connect(const std::string& host, int port,
 
   const juce::String path = BuildWebSocketPath(room_code, user_id);
   tempolink::juceapp::logging::Info(
-      "Signaling connect: ws://" + juce::String(host) + ":" + juce::String(port) +
+      "Signaling connect: " +
+      juce::String(use_tls_ ? "wss://" : "ws://") + juce::String(host) + ":" +
+      juce::String(port) +
       path);
-  if (!transport_->Connect(host, port, path.toStdString())) {
+  if (!transport_->Connect(host, port, path.toStdString(), use_tls_)) {
     tempolink::juceapp::logging::Error("Signaling handshake failed");
     emitEvent(Event{Event::Type::Error, "", "", {},
                     tempolink::juceapp::text::kSignalingHandshakeFailed});
@@ -203,4 +223,14 @@ bool SignalingClient::sendEnvelope(const juce::String& type,
         ", to=" + juce::String(to_user_id));
   }
   return ok;
+}
+
+void SignalingClient::resetTransportForCurrentMode() {
+  if (use_tls_) {
+    transport_ =
+        std::make_unique<tempolink::juceapp::network::TlsWebSocketTransport>();
+  } else {
+    transport_ =
+        std::make_unique<tempolink::juceapp::network::PlainWebSocketTransport>();
+  }
 }

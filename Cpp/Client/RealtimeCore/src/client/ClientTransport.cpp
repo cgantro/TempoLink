@@ -19,6 +19,10 @@ std::uint64_t NowMicros() {
 
 bool ClientTransport::Start(const Endpoint& endpoint) {
   Stop();
+  if (endpoint.server_host.empty() || endpoint.server_port == 0 ||
+      endpoint.room_id == 0 || endpoint.participant_id == 0) {
+    return false;
+  }
   endpoint_ = endpoint;
   sequence_.store(0, std::memory_order_relaxed);
 

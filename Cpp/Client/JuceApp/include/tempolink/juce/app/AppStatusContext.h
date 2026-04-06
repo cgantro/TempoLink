@@ -23,6 +23,7 @@ struct AppStatusContext {
   // Network Configuration
   std::string control_plane_host;
   std::uint16_t control_plane_port = 0;
+  bool control_plane_use_tls = false;
   std::string default_relay_host;
   std::uint16_t default_relay_port = 0;
 };

@@ -38,6 +38,10 @@ float SmoothLevel(float current, float target) {
 
 bool ClientSession::Start(const Config& config) {
   Stop();
+  if (config.server_host.empty() || config.server_port == 0 || config.room_id == 0 ||
+      config.participant_id == 0 || config.nickname.empty()) {
+    return false;
+  }
   config_ = config;
   stats_ = {};
   joined_.store(false, std::memory_order_release);

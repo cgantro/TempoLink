@@ -46,6 +46,14 @@ set(TEMPOLINK_JUCE_CLIENT_SOURCES
   include/tempolink/juce/network/http/room/RoomApiTypes.h
   include/tempolink/juce/network/signaling/SignalingClient.h
   include/tempolink/juce/network/signaling/SignalingEventParser.h
+  include/tempolink/juce/network/transport/ISocketStreamChannel.h
+  include/tempolink/juce/network/transport/PlainSocketStream.h
+  include/tempolink/juce/network/transport/TlsSocketStream.h
+  include/tempolink/juce/network/transport/PlainWebSocketTransport.h
+  include/tempolink/juce/network/transport/TlsWebSocketTransport.h
+  include/tempolink/juce/network/transport/SocketStream.h
+  include/tempolink/juce/network/transport/WebSocketFrameCodec.h
+  include/tempolink/juce/network/transport/WebSocketHandshake.h
   include/tempolink/juce/network/http/user/UsersApiClient.h
   include/tempolink/juce/network/http/user/ProfileApiClient.h
   include/tempolink/juce/style/UiStyle.h
@@ -120,6 +128,13 @@ set(TEMPOLINK_JUCE_CLIENT_SOURCES
   src/network/http/room/RoomApiPayloadBuilder.cpp
   src/network/signaling/SignalingClient.cpp
   src/network/signaling/SignalingEventParser.cpp
+  src/network/transport/PlainSocketStream.cpp
+  src/network/transport/TlsSocketStream.cpp
+  src/network/transport/PlainWebSocketTransport.cpp
+  src/network/transport/TlsWebSocketTransport.cpp
+  src/network/transport/SocketStream.cpp
+  src/network/transport/WebSocketFrameCodec.cpp
+  src/network/transport/WebSocketHandshake.cpp
   src/network/transport/JuceWebSocketTransport.cpp
   src/network/http/user/UsersApiClient.cpp
   src/network/http/user/ProfileApiClient.cpp

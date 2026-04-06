@@ -8,14 +8,14 @@
 #include <stdexcept>
 
 #include "tempolink/client/ClientSession.h"
-#include "tempolink/config/NetworkConstants.h"
+#include "tempolink/juce/config/ClientEnvConfig.h"
 #include "tempolink/client/codec/OpusCodec.h"
 
 int main() {
   tempolink::client::ClientSession::Config config;
-  config.server_host = tempolink::config::kDefaultRelayHost;
-  config.server_port = tempolink::config::kDefaultRelayPort;
-  config.room_id = tempolink::config::kDefaultRoomId;
+  config.server_host = tempolink::juceapp::config::ClientEnvConfig::kDefaultRelayHost;
+  config.server_port = tempolink::juceapp::config::ClientEnvConfig::kDefaultRelayPort;
+  config.room_id = tempolink::juceapp::config::ClientEnvConfig::kDefaultRoomId;
   config.participant_id = 9001;
   config.nickname = "console-client";
   

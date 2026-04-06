@@ -21,9 +21,10 @@ if(MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
   )
 endif()
 
-add_subdirectory(Shared)
+include(Client/JuceApp/cmake/TempolinkCommon.cmake)
 
 if(TEMPOLINK_BUILD_CLIENT OR TEMPOLINK_BUILD_JUCE_CLIENT)
+  tempolink_add_common_library()
   add_subdirectory(Client/RealtimeCore)
 endif()
 

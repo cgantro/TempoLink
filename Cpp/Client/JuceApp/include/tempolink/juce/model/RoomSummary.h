@@ -6,8 +6,6 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-#include "tempolink/config/NetworkConstants.h"
-
 struct RoomSummary {
   std::string room_code;
   juce::String title;
@@ -16,8 +14,8 @@ struct RoomSummary {
   std::vector<juce::String> tags;
   std::string host_user_id;
   juce::String host_label;
-  std::string relay_host = tempolink::config::kDefaultRelayHost;
-  std::uint16_t relay_port = tempolink::config::kDefaultRelayPort;
+  std::string relay_host;
+  std::uint16_t relay_port = 0;
   bool is_public = true;
   bool has_password = false;
   bool is_active = false;
@@ -26,4 +24,3 @@ struct RoomSummary {
   juce::String latency_hint;
   std::vector<std::string> participants;
 };
-

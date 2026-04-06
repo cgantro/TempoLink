@@ -7,7 +7,7 @@ function(tempolink_apply_common_target_settings target_name target_source_dir)
     ${target_name}
     PRIVATE
       "${target_source_dir}/include"
-      "${CMAKE_SOURCE_DIR}/Cpp/Shared/include"
+      "${CMAKE_SOURCE_DIR}/Cpp/Client/JuceApp/include"
   )
 
   target_compile_definitions(
