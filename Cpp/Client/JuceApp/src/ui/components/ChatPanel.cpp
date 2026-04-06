@@ -84,7 +84,7 @@ void ChatPanel::SendCurrentMessage() {
       tempolink::juceapp::logging::Error("Failed to send chat message.");
       Message system_msg;
       system_msg.user_id = "System";
-      system_msg.text = "메시지 전송 실패";
+      system_msg.text = juce::String::fromUTF8("메시지 전송 실패");
       system_msg.timestamp = juce::Time::getCurrentTime().toString(true, false);
       system_msg.is_local = false;
       AddMessage(system_msg);
@@ -93,7 +93,8 @@ void ChatPanel::SendCurrentMessage() {
     tempolink::juceapp::logging::Error("Not connected to signaling server.");
     Message system_msg;
     system_msg.user_id = "System";
-    system_msg.text = "시그널링 연결이 없어 전송할 수 없습니다.";
+    system_msg.text =
+        juce::String::fromUTF8("시그널링 연결이 없어 전송할 수 없습니다.");
     system_msg.timestamp = juce::Time::getCurrentTime().toString(true, false);
     system_msg.is_local = false;
     AddMessage(system_msg);
