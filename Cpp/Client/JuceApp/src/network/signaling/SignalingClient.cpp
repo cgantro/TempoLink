@@ -21,6 +21,27 @@ juce::String BuildWebSocketPath(const std::string& room_code,
   return "/ws/signaling?roomCode=" + escaped_room + "&userId=" + escaped_user;
 }
 
+const char* EventTypeToString(SignalingClient::Event::Type type) {
+  using Type = SignalingClient::Event::Type;
+  switch (type) {
+    case Type::RoomJoined:
+      return "room.joined";
+    case Type::PeerJoined:
+      return "peer.joined";
+    case Type::PeerLeft:
+      return "peer.left";
+    case Type::PeerPing:
+      return "peer.ping";
+    case Type::PeerPong:
+      return "peer.pong";
+    case Type::ChatMessage:
+      return "chat.message";
+    case Type::Error:
+      return "signal.error";
+  }
+  return "unknown";
+}
+
 }  // namespace
 
 using Transport = tempolink::juceapp::network::IWebSocketTransport;
@@ -53,6 +74,9 @@ bool SignalingClient::connect(const std::string& host, int port,
   transport_->SetOnDisconnected([this] { onTransportDisconnected(); });
 
   const juce::String path = BuildWebSocketPath(room_code, user_id);
+  tempolink::juceapp::logging::Info(
+      "Signaling connect: ws://" + juce::String(host) + ":" + juce::String(port) +
+      path);
   if (!transport_->Connect(host, port, path.toStdString())) {
     tempolink::juceapp::logging::Error("Signaling handshake failed");
     emitEvent(Event{Event::Type::Error, "", "", {},
@@ -60,10 +84,14 @@ bool SignalingClient::connect(const std::string& host, int port,
     return false;
   }
 
+  tempolink::juceapp::logging::Info("Signaling connected");
   return true;
 }
 
 void SignalingClient::disconnect() {
+  if (transport_->IsConnected()) {
+    tempolink::juceapp::logging::Info("Signaling disconnect requested");
+  }
   transport_->Disconnect();
   room_code_.clear();
   user_id_.clear();
@@ -85,7 +113,10 @@ bool SignalingClient::sendPeerPong(const std::string& to_user_id,
 
 bool SignalingClient::sendChatMessage(const juce::String& text,
                                       const std::string& to_user_id) {
-  if (!transport_->IsConnected()) return false;
+  if (!transport_->IsConnected()) {
+    tempolink::juceapp::logging::Warn("Signaling send chat failed: not connected");
+    return false;
+  }
   nlohmann::json payload = nlohmann::json::object();
   payload["message"] = text.toStdString();
   payload["sentAtMs"] = juce::Time::currentTimeMillis();
@@ -111,16 +142,27 @@ void SignalingClient::onFrameReceived(const Transport::Frame& frame) {
 }
 
 void SignalingClient::onTransportDisconnected() {
-  // Transport layer disconnected — could emit an event to UI if needed.
+  tempolink::juceapp::logging::Warn("Signaling transport disconnected");
 }
 
 void SignalingClient::dispatchTextMessage(const juce::String& message_text) {
   auto event = tempolink::juceapp::network::ParseSignalingEvent(message_text);
-  if (!event.has_value()) return;
+  if (!event.has_value()) {
+    tempolink::juceapp::logging::Warn(
+        "Signaling parse failed: " + message_text.substring(0, 220));
+    return;
+  }
   emitEvent(std::move(*event));
 }
 
 void SignalingClient::emitEvent(Event event) {
+  if (event.type != Event::Type::PeerPing && event.type != Event::Type::PeerPong) {
+    tempolink::juceapp::logging::Info(
+        "Signaling event: " + juce::String(EventTypeToString(event.type)) +
+        ", from=" + juce::String(event.from_user_id) +
+        ", room=" + juce::String(event.room_code));
+  }
+
   EventCallback callback;
   {
     std::lock_guard<std::mutex> lock(callback_mutex_);
@@ -136,7 +178,13 @@ void SignalingClient::emitEvent(Event event) {
 bool SignalingClient::sendEnvelope(const juce::String& type,
                                    const std::string& to_user_id,
                                    std::optional<std::uint64_t> sent_at_ms) {
-  if (!transport_->IsConnected()) return false;
+  if (!transport_->IsConnected()) {
+    if (type != "peer.ping" && type != "peer.pong") {
+      tempolink::juceapp::logging::Warn(
+          "Signaling send failed (disconnected): type=" + type);
+    }
+    return false;
+  }
   nlohmann::json payload = nlohmann::json::object();
   if (sent_at_ms.has_value()) payload["sentAtMs"] = *sent_at_ms;
   nlohmann::json envelope = {
@@ -148,5 +196,11 @@ bool SignalingClient::sendEnvelope(const juce::String& type,
   };
   const std::string serialized = envelope.dump();
   juce::MemoryBlock body(serialized.data(), serialized.size());
-  return transport_->SendFrame(Transport::Opcode::Text, body);
+  const bool ok = transport_->SendFrame(Transport::Opcode::Text, body);
+  if (!ok && type != "peer.ping" && type != "peer.pong") {
+    tempolink::juceapp::logging::Warn(
+        "Signaling send frame failed: type=" + type +
+        ", to=" + juce::String(to_user_id));
+  }
+  return ok;
 }

@@ -54,6 +54,11 @@ class SessionPresenceController {
   std::vector<ParticipantSummary> participants_;
   std::unordered_map<std::string, int> peer_latency_ms_;
   std::unordered_map<std::string, std::uint64_t> peer_ping_last_sent_ms_;
+  bool has_last_signaling_connected_ = false;
+  bool last_signaling_connected_ = false;
+  bool has_last_media_connected_ = false;
+  bool last_media_connected_ = false;
+  int last_peer_rtt_count_ = -1;
   std::chrono::steady_clock::time_point last_peer_ping_tick_ =
       std::chrono::steady_clock::time_point::min();
   std::chrono::steady_clock::time_point last_device_refresh_tick_ =

@@ -90,6 +90,10 @@ void SessionLifecycleController::PreviewRoom(const std::string& room_code) {
 void SessionLifecycleController::OpenRoom(const std::string& room_code,
                                           int tick_index, bool ice_config_loaded,
                                           const IceConfigSnapshot& ice_config) {
+  tempolink::juceapp::logging::Info(
+      "OpenRoom requested: room=" + juce::String(room_code) +
+      ", user=" + juce::String(status_context_.current_user_id));
+
   if (!status_context_.auth_completed || status_context_.current_user_id.empty()) {
     if (status_context_.current_user_id.empty()) {
       const int guest_suffix = 100000 + juce::Random::getSystemRandom().nextInt(900000);
@@ -182,6 +186,13 @@ void SessionLifecycleController::OpenRoom(const std::string& room_code,
                                     ? status_context_.current_user_id
                                     : status_context_.current_display_name;
 
+                            tempolink::juceapp::logging::Info(
+                                "Starting media session: relay=" +
+                                juce::String(config.server_host) + ":" +
+                                juce::String(static_cast<int>(config.server_port)) +
+                                ", participantId=" +
+                                juce::String(static_cast<int>(config.participant_id)));
+
                             if (!session_.Start(config) || !session_.Join()) {
                               tempolink::juceapp::logging::Error(
                                   "Media session start/join failed roomCode=" +
@@ -198,6 +209,9 @@ void SessionLifecycleController::OpenRoom(const std::string& room_code,
                               }
                               return;
                             }
+
+                            tempolink::juceapp::logging::Info(
+                                "Media session started/joined successfully");
 
                             session_active_ = true;
                             active_room_code_ = room_code;
@@ -281,10 +295,21 @@ void SessionLifecycleController::OpenRoom(const std::string& room_code,
                                       status_context_.selected_part_label, event);
                                 });
                             if (!signaling_ok) {
+                              tempolink::juceapp::logging::Warn(
+                                  "Signaling connect failed after media start: host=" +
+                                  juce::String(status_context_.control_plane_host) +
+                                  ", port=" +
+                                  juce::String(status_context_.control_plane_port));
                               if (view_callbacks_.set_session_status_text) {
                                 view_callbacks_.set_session_status_text(
                                     std::string(tempolink::juceapp::text::kMediaConnectedSignalingOffline));
                               }
+                            } else {
+                              tempolink::juceapp::logging::Info(
+                                  "Signaling connect succeeded: host=" +
+                                  juce::String(status_context_.control_plane_host) +
+                                  ", port=" +
+                                  juce::String(status_context_.control_plane_port));
                             }
 
                             if (routing_callbacks_.on_session_started) {
@@ -298,6 +323,10 @@ void SessionLifecycleController::OpenRoom(const std::string& room_code,
 }
 
 void SessionLifecycleController::LeaveRoom() {
+  tempolink::juceapp::logging::Info(
+      "LeaveRoom requested: active=" +
+      juce::String(session_active_ ? "true" : "false") +
+      ", room=" + juce::String(active_room_code_));
   signaling_client_.disconnect();
 
   if (session_active_ && !active_room_code_.empty()) {

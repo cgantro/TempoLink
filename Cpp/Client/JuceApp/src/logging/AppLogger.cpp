@@ -75,6 +75,7 @@ void Initialize(const juce::String& app_name, const juce::String& app_version) {
 
   if (g_file_logger != nullptr) {
     g_current_log_path = g_file_logger->getLogFile().getFullPathName();
+    g_file_logger->logMessage("[INFO] Log file path: " + g_current_log_path);
     return;
   }
 
@@ -87,9 +88,9 @@ void Shutdown() {
   g_current_log_path = {};
 }
 
-void Info(const juce::String&) {}
+void Info(const juce::String& message) { Write("INFO", message); }
 
-void Warn(const juce::String&) {}
+void Warn(const juce::String& message) { Write("WARN", message); }
 
 void Error(const juce::String& message) { Write("ERROR", message); }
 

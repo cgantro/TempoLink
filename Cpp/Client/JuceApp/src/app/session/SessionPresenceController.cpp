@@ -9,6 +9,7 @@
 
 #include "tempolink/juce/app/ParticipantRosterBuilder.h"
 #include "tempolink/juce/app/SessionModelSupport.h"
+#include "tempolink/juce/logging/AppLogger.h"
 
 // ---------------------------------------------------------------------------
 // Event dispatch table type
@@ -46,6 +47,11 @@ void SessionPresenceController::reset() {
   participants_.clear();
   peer_latency_ms_.clear();
   peer_ping_last_sent_ms_.clear();
+  has_last_signaling_connected_ = false;
+  last_signaling_connected_ = false;
+  has_last_media_connected_ = false;
+  last_media_connected_ = false;
+  last_peer_rtt_count_ = -1;
   last_peer_ping_tick_ = std::chrono::steady_clock::time_point::min();
   last_device_refresh_tick_ = std::chrono::steady_clock::time_point::min();
   session_view_.setParticipants(participants_);
@@ -129,6 +135,38 @@ void SessionPresenceController::refreshViewState(bool session_active,
   }
 
   const auto& stats = session_.GetStats();
+  int peer_rtt_count = 0;
+  for (const auto& [_, latency_ms] : peer_latency_ms_) {
+    if (latency_ms >= 0) {
+      ++peer_rtt_count;
+    }
+  }
+
+  if (!has_last_signaling_connected_ ||
+      last_signaling_connected_ != signaling_connected) {
+    tempolink::juceapp::logging::Info(
+        "Session signaling state changed: " +
+        juce::String(signaling_connected ? "connected" : "disconnected"));
+    has_last_signaling_connected_ = true;
+    last_signaling_connected_ = signaling_connected;
+  }
+
+  if (!has_last_media_connected_ || last_media_connected_ != stats.connected) {
+    tempolink::juceapp::logging::Info(
+        "Session media RTT state changed: " +
+        juce::String(stats.connected ? "relay-rtt-ok" : "relay-rtt-missing"));
+    has_last_media_connected_ = true;
+    last_media_connected_ = stats.connected;
+  }
+
+  if (last_peer_rtt_count_ != peer_rtt_count) {
+    tempolink::juceapp::logging::Info(
+        "Session peer RTT count changed: " + juce::String(peer_rtt_count) +
+        " (p2p-active=" + juce::String(peer_rtt_count > 0 ? "true" : "false") +
+        ")");
+    last_peer_rtt_count_ = peer_rtt_count;
+  }
+
   session_view_.setInputLevel(session_.InputLevel());
   tempolink::juceapp::app::RefreshSessionStatusView(
       session_view_, active_room_code, stats, session_.AudioBackendName(),
@@ -193,6 +231,20 @@ void SessionPresenceController::handleSignalingEvent(
   }
 
   using Type = SignalingClient::Event::Type;
+  if (event.type == Type::Error) {
+    tempolink::juceapp::logging::Warn(
+        "Signaling event error: " + juce::String(event.message));
+  } else if (event.type == Type::PeerJoined || event.type == Type::PeerLeft ||
+             event.type == Type::RoomJoined) {
+    tempolink::juceapp::logging::Info(
+        "Signaling event in session: type=" +
+        juce::String(event.type == Type::RoomJoined
+                         ? "room.joined"
+                         : (event.type == Type::PeerJoined ? "peer.joined"
+                                                            : "peer.left")) +
+        ", user=" + juce::String(event.user_id) +
+        ", participants=" + juce::String(static_cast<int>(event.participants.size())));
+  }
 
   // Static dispatch table — maps event type to handler logic.
   static const std::unordered_map<Type, EventHandler> dispatch = {
