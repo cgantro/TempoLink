@@ -3,6 +3,7 @@ name: Spring Boot CI/CD
 on:
   push:
     branches: ["dev", "main"]
+    tags: ["v*.*.*"]
     paths:
       - "SpringBoot/**"
       - ".github/workflows/springboot.yml"
@@ -11,6 +12,7 @@ on:
     paths:
       - "SpringBoot/**"
       - ".github/workflows/springboot.yml"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -48,7 +50,9 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
     runs-on: ubuntu-latest
 
     defaults:
