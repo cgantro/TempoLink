@@ -5,7 +5,7 @@
 #define MyAppExeName ExeName
 
 [Setup]
-AppId={A1B2C3D4-E5F6-7890-1234-567890ABCDEF}
+AppId={{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -31,8 +31,10 @@ LicenseFile=License.txt
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; CLI에서 주입받는 AppDir 매크로를 사용하여 Staging 폴더의 모든 파일을 복사
-Source: "{#AppDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Whitelist 방식으로 배포 파일만 명시적으로 포함
+Source: "{#AppDir}\*.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#AppDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#AppDir}\.env.deploy"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
