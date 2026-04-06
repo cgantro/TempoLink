@@ -199,6 +199,30 @@ jobs:
             test -f "$STAGE_DIR/bin/TempoLink JUCE Client"
           fi
 
+      - name: Materialize .env.deploy from GitHub Variables/Secrets
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TEMPOLINK_ENV_DEPLOY_SECRET: ${{ secrets.TEMPOLINK_ENV_DEPLOY }}
+          TEMPOLINK_ENV_DEPLOY_VAR: ${{ vars.TEMPOLINK_ENV_DEPLOY }}
+          ENV_DEPLOY_SECRET: ${{ secrets.ENV_DEPLOY }}
+          ENV_DEPLOY_VAR: ${{ vars.ENV_DEPLOY }}
+        run: |
+          $content = @(
+            $env:TEMPOLINK_ENV_DEPLOY_SECRET,
+            $env:TEMPOLINK_ENV_DEPLOY_VAR,
+            $env:ENV_DEPLOY_SECRET,
+            $env:ENV_DEPLOY_VAR
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+
+          if ([string]::IsNullOrWhiteSpace($content)) {
+            Write-Host "No GitHub variable/secret for .env.deploy found. Packaging will continue without it." -ForegroundColor Yellow
+            exit 0
+          }
+
+          Set-Content -Path "$PWD\.env.deploy" -Value $content -Encoding utf8
+          Write-Host ".env.deploy generated from GitHub variable/secret." -ForegroundColor Green
+
       - name: Package Windows (Inno Setup)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -209,9 +233,12 @@ jobs:
           $OutDir = "$PWD\installer-output"
           $IssPath = "$PWD\scripts\packaging\TempoLink.iss"
           if (-not (Test-Path $IssPath)) { throw "Inno script not found: $IssPath" }
-          if (-not (Test-Path "$PWD\.env.deploy")) { throw ".env.deploy is required for packaging." }
           cmake --install out/build/juce-client-release --prefix "$StagingDir" --config Release
-          Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
+          if (Test-Path "$PWD\.env.deploy") {
+            Copy-Item "$PWD\.env.deploy" "$StagingDir\.env.deploy" -Force
+          } else {
+            Write-Host ".env.deploy not found. Continuing without deploy env file." -ForegroundColor Yellow
+          }
           & $ISCC "/O$OutDir" "/DAppDir=$StagingDir" "/DExeName=TempoLink JUCE Client.exe" $IssPath
 
       - name: Package (CPack)
