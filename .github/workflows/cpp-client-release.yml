@@ -47,9 +47,30 @@ jobs:
           fi
           echo "release_version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+  deps-windows:
+    name: release-deps (windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Windows vcpkg
+        uses: ./.github/actions/setup-windows-vcpkg
+        with:
+          triplet: ${{ env.VCPKG_TRIPLET }}
+
+      - name: Install manifest dependencies (Windows)
+        shell: pwsh
+        run: |
+          $vcpkgExe = Join-Path "$PWD\.vcpkg" "vcpkg.exe"
+          if (-not (Test-Path $vcpkgExe)) {
+            throw "vcpkg.exe not found: $vcpkgExe"
+          }
+          & $vcpkgExe install --triplet "${{ env.VCPKG_TRIPLET }}" --x-manifest-root "$PWD"
+
   build:
     name: release-build (${{ matrix.os }})
-    needs: metadata
+    needs: [metadata, deps-windows]
     strategy:
       fail-fast: false
       matrix:

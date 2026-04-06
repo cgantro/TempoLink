@@ -15,6 +15,7 @@ runs:
         path: |
           ${{ github.workspace }}/.vcpkg/installed
           ${{ github.workspace }}/.vcpkg/packages
+          ${{ github.workspace }}/.vcpkg/buildtrees
           ${{ github.workspace }}/.vcpkg/downloads
           ${{ github.workspace }}/.vcpkg/archives
         key: vcpkg-${{ runner.os }}-${{ inputs.triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}-v1
