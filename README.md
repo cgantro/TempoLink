@@ -1,69 +1,106 @@
 # TempoLink
 
-온라인 합주 플랫폼 모노레포.
+> Ultra Low-Latency P2P Realtime Ensemble Platform
 
-## Repository Layout
+TempoLink는 실시간 온라인 합주를 위한 초저지연 P2P 오디오 플랫폼입니다.
+
+기존 화상회의 플랫폼은 대화 중심 구조이기 때문에,
+합주에 필요한 수준의 지연시간을 만족시키기 어렵습니다.
+
+TempoLink는:
+
+- Native 기반 오디오 처리
+- UDP 기반 P2P 통신
+- 최소한의 네트워크 홉
+- 오디오 세션과 GUI 분리
+
+구조를 통해 실시간 합주 환경을 목표로 합니다.
+
+벤치마킹:
+
+- Yamaha Syncroom
+
+목표 레이턴시:
+
+- 한국: 15ms 이하
+- 일본: 30ms 이하
+
+---
+
+# Features
+
+- Ultra Low-Latency Audio Streaming
+- Direct P2P Audio Connection
+- Native Windows/macOS Client
+- GUI / Audio Session Process Separation
+- UDP 기반 실시간 오디오 전송
+- Opus 기반 저지연 오디오 압축
+
+---
+
+# Philosophy
+
+TempoLink는 “항상 연결된다”보다:
+
+> “연결되었을 때 충분히 빠르다”
+
+를 목표로 합니다.
+
+이를 위해:
+
+- Relay 서버를 사용하지 않으며
+- Direct P2P 연결만 지원합니다.
+
+따라서 일부 NAT 환경에서는 연결이 실패할 수 있습니다.
+
+하지만:
+
+- 추가 네트워크 홉 제거
+- RTT 최소화
+- 실시간성 유지
+
+를 우선하는 방향을 선택했습니다.
+
+---
+
+# Architecture
 
 ```text
-TempoLink/
-  Cpp/                  # 실시간 오디오 데이터 플레인 (Client/P2P core)
-  SpringBoot/           # 컨트롤 플레인 API (로그인/방관리 확장 영역)
-  Docs/                 # 아키텍처/프로토콜/운영 문서
-  Scripts/              # 빌드/실행/CI 보조 스크립트
-  Assets/               # UI/오디오/테스트 리소스
+GUI Process (Qt)
+        │
+       IPC
+        │
+Audio Session Process (JUCE + UDP + Opus)
+        │
+ Direct P2P UDP
+        │
+      Peer
 ```
 
-## Current Components
+---
 
-1. `Cpp/Client/JuceApp`: JUCE 기반 클라이언트
-2. `Cpp/Client/RealtimeCore`: C++ 실시간 세션 코어 + 콘솔 클라이언트
-3. `Cpp/Shared`: 공통 C++ 코드
-4. `SpringBoot/ControlPlaneService`: 컨트롤 플레인 API(현재는 방 생성/입장/퇴장 중심)
+# Platform Support
 
-## C++ Build
+- Windows
+- macOS
 
-```powershell
-cmake --preset client-debug
-cmake --build --preset client-debug
-```
+---
 
-JUCE 클라이언트:
+# Status
 
-```powershell
-cmake --preset juce-client-debug
-cmake --build --preset juce-client-debug
-```
+In Progress
 
-Windows 초저지연 팁:
-1. JUCE 앱에서 `Require ASIO (Windows)` 활성화
-2. 버퍼 `64`(안정 시 `32`) + 48kHz 권장
+---
 
-## SpringBoot Build/Run
+# Documentation
 
-Wrapper 생성(1회):
+- `/docs/architecture.md`
+- `/docs/networking.md`
+- `/docs/audio-pipeline.md`
+- `/docs/tech-stack.md`
 
-```bash
-./Scripts/build/spring-wrapper.sh
-```
+---
 
-```bash
-./Scripts/run/control-plane.sh
-```
+# License
 
-Windows PowerShell:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\build\spring-wrapper.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\run\control-plane.ps1
-```
-
-## API (ControlPlaneService)
-
-1. `POST /api/rooms`
-2. `GET /api/rooms`
-3. `GET /api/rooms/{roomCode}`
-4. `POST /api/rooms/{roomCode}/join`
-5. `POST /api/rooms/{roomCode}/leave`
+MIT
