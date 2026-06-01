@@ -10,7 +10,6 @@ Item {
     property int currentTab: 0
     readonly property int pagePadding: Math.max(18, Math.min(28, Math.round(width * 0.016)))
     readonly property int authPaneWidth: Math.max(340, Math.min(390, Math.round(width * 0.28)))
-    readonly property int previewCardWidth: width < 1440 ? 260 : 290
 
     Rectangle {
         anchors.fill: parent
@@ -177,7 +176,7 @@ Item {
                 spacing: 12
 
                 Text {
-                    text: "TempoLink"
+                    text: qsTr("Sign in")
                     color: Theme.ink
                     font.family: Theme.displayFont
                     font.pixelSize: 34
@@ -186,11 +185,11 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                PrimaryButton {
-                    compact: true
-                    variant: "ghost"
-                    text: qsTr("Lobby")
-                    onClicked: sessionFacade.continueWithGooglePrototype()
+                StatusBadge {
+                    text: root.currentTab === 0 ? qsTr("LOGIN")
+                         : root.currentTab === 1 ? qsTr("SIGN UP")
+                         : "GOOGLE"
+                    tone: "gold"
                 }
             }
 
@@ -199,108 +198,122 @@ Item {
                 Layout.fillHeight: true
                 clip: true
 
-                ScrollView {
+                Item {
                     anchors.fill: parent
                     anchors.margins: 18
-                    clip: true
-                    contentWidth: availableWidth
 
-                    Flow {
-                        width: parent.availableWidth
-                        spacing: 14
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 18
 
-                        Repeater {
-                            model: lobbyModel
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
 
                             Rectangle {
-                                required property int index
-                                required property string name
-                                required property string host
-                                required property string region
-                                required property int bpm
-                                required property int rtt
-                                required property bool live
-                                required property int memberCount
-                                required property int sourceIndex
-
-                                width: root.previewCardWidth
-                                height: 188
-                                radius: 14
-                                color: "#141414"
-                                border.color: live ? Theme.gold : "#2f2f2f"
+                                anchors.fill: parent
+                                radius: 18
+                                color: "#111111"
+                                border.color: "#2a2a2a"
                                 border.width: 1
+                            }
 
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 16
-                                    spacing: 10
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 28
+                                spacing: 18
 
-                                    RowLayout {
-                                        Layout.fillWidth: true
+                                StatusBadge {
+                                    text: qsTr("DESKTOP")
+                                    tone: "gold"
+                                }
 
-                                        StatusBadge {
-                                            text: live ? qsTr("LIVE") : qsTr("READY")
-                                            tone: live ? "gold" : "good"
+                                Text {
+                                    text: "TempoLink"
+                                    color: Theme.ink
+                                    font.family: Theme.displayFont
+                                    font.pixelSize: Math.max(54, Math.min(76, Math.round(root.width * 0.04)))
+                                    font.weight: Font.DemiBold
+                                }
+
+                                Item { Layout.fillHeight: true }
+
+                                CardPanel {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 168
+
+                                    ColumnLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 18
+                                        spacing: 14
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+
+                                            Text {
+                                                text: qsTr("Ready")
+                                                color: Theme.ink
+                                                font.family: Theme.uiFont
+                                                font.pixelSize: 18
+                                                font.weight: Font.DemiBold
+                                            }
+
+                                            Item { Layout.fillWidth: true }
+
+                                            StatusBadge {
+                                                text: root.currentTab === 0 ? qsTr("LOGIN")
+                                                     : root.currentTab === 1 ? qsTr("SIGN UP")
+                                                     : "GOOGLE"
+                                                tone: "good"
+                                            }
                                         }
 
-                                        Item { Layout.fillWidth: true }
-
-                                        MetricPill {
-                                            value: rtt
-                                        }
-                                    }
-
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: name
-                                        color: Theme.ink
-                                        font.family: Theme.displayFont
-                                        font.pixelSize: 28
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: host
-                                        color: Theme.inkFaint
-                                        font.family: Theme.uiFont
-                                        font.pixelSize: 13
-                                        elide: Text.ElideRight
-                                    }
-
-                                    WaveformStrip {
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: 34
-                                        bars: 22
-                                        seed: index + 4
-                                        barColor: Theme.gold
-                                        barOpacity: 0.78
-                                    }
-
-                                    RowLayout {
-                                        Layout.fillWidth: true
-
-                                        Text {
-                                            text: region
-                                            color: Theme.inkSoft
-                                            font.family: Theme.monoFont
-                                            font.pixelSize: 11
+                                        WaveformStrip {
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 56
+                                            bars: 34
+                                            seed: 8
+                                            barColor: Theme.gold
+                                            barOpacity: 0.78
                                         }
 
-                                        Text {
-                                            text: bpm + " BPM"
-                                            color: Theme.inkSoft
-                                            font.family: Theme.monoFont
-                                            font.pixelSize: 11
-                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 12
 
-                                        Item { Layout.fillWidth: true }
+                                            Rectangle {
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 44
+                                                radius: 12
+                                                color: "#0d0d0d"
+                                                border.color: "#242424"
+                                                border.width: 1
 
-                                        PrimaryButton {
-                                            compact: true
-                                            text: qsTr("입장")
-                                            onClicked: sessionFacade.joinRoom(sourceIndex)
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: qsTr("macOS / Windows")
+                                                    color: Theme.inkSoft
+                                                    font.family: Theme.uiFont
+                                                    font.pixelSize: 13
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 44
+                                                radius: 12
+                                                color: "#0d0d0d"
+                                                border.color: "#242424"
+                                                border.width: 1
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: qsTr("Low latency")
+                                                    color: Theme.inkSoft
+                                                    font.family: Theme.uiFont
+                                                    font.pixelSize: 13
+                                                }
+                                            }
                                         }
                                     }
                                 }
