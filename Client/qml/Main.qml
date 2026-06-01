@@ -10,8 +10,8 @@ ApplicationWindow {
 
     width: 1440
     height: 920
-    minimumWidth: 1280
-    minimumHeight: 820
+    minimumWidth: 1120
+    minimumHeight: 760
     visible: true
     title: "TempoLink"
     color: Theme.desktopBottom

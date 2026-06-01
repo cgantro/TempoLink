@@ -8,8 +8,10 @@ Item {
     id: root
 
     property int currentTab: 0
-    readonly property int pagePadding: width >= 1500 ? 72 : 56
-    readonly property int heroTitleSize: Math.max(72, Math.min(104, Math.round(width * 0.075)))
+    readonly property int pagePadding: Math.max(28, Math.min(72, Math.round(width * 0.04)))
+    readonly property int sectionSpacing: Math.max(16, Math.min(28, Math.round(width * 0.016)))
+    readonly property int heroTitleSize: Math.max(60, Math.min(96, Math.round(width * 0.062)))
+    readonly property int authPaneWidth: Math.max(360, Math.min(520, Math.round(width * 0.36)))
 
     Rectangle {
         anchors.fill: parent
@@ -22,15 +24,16 @@ Item {
 
         Item {
             Layout.fillWidth: true
+            Layout.preferredWidth: Math.max(root.width - root.authPaneWidth, root.width * 0.56)
             Layout.fillHeight: true
 
             ColumnLayout {
                 anchors.fill: parent
                 anchors.leftMargin: root.pagePadding
                 anchors.rightMargin: root.pagePadding
-                anchors.topMargin: 56
-                anchors.bottomMargin: 56
-                spacing: 24
+                anchors.topMargin: root.pagePadding
+                anchors.bottomMargin: root.pagePadding
+                spacing: root.sectionSpacing
 
                 Text {
                     text: "TempoLink"
@@ -42,7 +45,7 @@ Item {
 
                 WaveformStrip {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 54
+                    Layout.preferredHeight: Math.max(44, Math.min(56, Math.round(root.height * 0.06)))
                     bars: 48
                     seed: 7
                     barColor: Theme.steel
@@ -53,7 +56,7 @@ Item {
                     Layout.fillWidth: true
 
                     Rectangle {
-                        width: Math.min(parent.width * 0.42, 240)
+                        width: Math.max(160, Math.min(parent.width * 0.34, 240))
                         height: width
                         radius: width / 2
                         anchors.right: parent.right
@@ -75,7 +78,7 @@ Item {
                     }
 
                     Column {
-                        width: Math.min(parent.width * 0.78, 620)
+                        width: Math.min(parent.width * 0.8, 620)
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 14
@@ -84,7 +87,7 @@ Item {
                             text: qsTr("함께 연주할 준비가 끝났습니다.")
                             color: Theme.inkSoft
                             font.family: Theme.uiFont
-                            font.pixelSize: 22
+                            font.pixelSize: Math.max(18, Math.min(22, Math.round(root.width * 0.015)))
                             font.weight: Font.Medium
                         }
 
@@ -102,7 +105,7 @@ Item {
                             text: qsTr("로그인하고 바로 세션에 들어갈 수 있도록 시작 화면을 다시 정리했습니다.")
                             color: Theme.inkFaint
                             font.family: Theme.uiFont
-                            font.pixelSize: 18
+                            font.pixelSize: Math.max(15, Math.min(18, Math.round(root.width * 0.0125)))
                             wrapMode: Text.WordWrap
                             lineHeight: 1.3
                         }
@@ -120,7 +123,9 @@ Item {
 
         Rectangle {
             id: authPane
-            Layout.preferredWidth: Math.max(460, Math.min(540, root.width * 0.34))
+            Layout.preferredWidth: root.authPaneWidth
+            Layout.minimumWidth: 360
+            Layout.maximumWidth: 520
             Layout.fillHeight: true
             color: Theme.backgroundDeep
             border.color: Theme.line
@@ -133,9 +138,9 @@ Item {
             property string signupPassword: ""
 
             ColumnLayout {
-                width: parent.width - 96
+                width: parent.width - Math.max(56, Math.min(96, Math.round(parent.width * 0.18)))
                 anchors.centerIn: parent
-                spacing: 18
+                spacing: root.sectionSpacing
 
                 Text {
                     text: "ACCOUNT"
@@ -151,7 +156,7 @@ Item {
                          : qsTr("Google로 계속하기")
                     color: Theme.ink
                     font.family: Theme.displayFont
-                    font.pixelSize: 40
+                    font.pixelSize: Math.max(30, Math.min(40, Math.round(parent.width * 0.08)))
                     font.weight: Font.DemiBold
                 }
 

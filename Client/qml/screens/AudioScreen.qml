@@ -5,6 +5,12 @@ import TempoLink
 import "../components"
 
 Item {
+    id: root
+
+    readonly property int outerPadding: Math.max(18, Math.min(24, Math.round(width * 0.016)))
+    readonly property int sidePanelWidth: Math.max(260, Math.min(360, Math.round(width * 0.28)))
+    readonly property int latencyValueSize: Math.max(42, Math.min(64, Math.round(width * 0.044)))
+
     Rectangle {
         anchors.fill: parent
         color: Theme.background
@@ -38,16 +44,16 @@ Item {
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.leftMargin: 24
-                Layout.topMargin: 24
-                Layout.bottomMargin: 24
+                Layout.leftMargin: root.outerPadding
+                Layout.topMargin: root.outerPadding
+                Layout.bottomMargin: root.outerPadding
                 clip: true
 
                 ColumnLayout {
-                    x: 24
-                    y: 24
-                    width: Math.max(parent.availableWidth - 48, 0)
-                    spacing: 24
+                    x: root.outerPadding
+                    y: root.outerPadding
+                    width: Math.max(parent.availableWidth - root.outerPadding * 2, 0)
+                    spacing: root.outerPadding
 
                     CardPanel {
                         Layout.fillWidth: true
@@ -131,12 +137,14 @@ Item {
             }
 
             ColumnLayout {
-                Layout.preferredWidth: 320
+                Layout.preferredWidth: root.sidePanelWidth
+                Layout.minimumWidth: 260
+                Layout.maximumWidth: 360
                 Layout.fillHeight: true
-                Layout.topMargin: 24
-                Layout.rightMargin: 24
-                Layout.bottomMargin: 24
-                spacing: 24
+                Layout.topMargin: root.outerPadding
+                Layout.rightMargin: root.outerPadding
+                Layout.bottomMargin: root.outerPadding
+                spacing: root.outerPadding
 
                 CardPanel {
                     Layout.fillWidth: true
@@ -159,7 +167,7 @@ Item {
                             text: Number(deviceFacade.estimatedLatencyMs).toFixed(1) + " ms"
                             color: Theme.gold
                             font.family: Theme.displayFont
-                            font.pixelSize: 64
+                            font.pixelSize: root.latencyValueSize
                             font.weight: Font.DemiBold
                         }
 

@@ -5,6 +5,12 @@ import TempoLink
 import "../components"
 
 Item {
+    id: root
+
+    readonly property int columnCount: width >= 1320 ? 2 : 1
+    readonly property int horizontalPadding: Math.max(18, Math.min(28, Math.round(width * 0.018)))
+    readonly property int gridGap: Math.max(14, Math.min(18, Math.round(width * 0.012)))
+
     Rectangle {
         anchors.fill: parent
         color: Theme.background
@@ -23,7 +29,7 @@ Item {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 28
+                anchors.margins: root.horizontalPadding
                 spacing: 18
 
                 RowLayout {
@@ -47,14 +53,16 @@ Item {
                     spacing: 16
 
                     FieldInput {
-                        Layout.preferredWidth: 360
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: Math.max(280, Math.min(420, root.width * 0.28))
                         placeholderText: qsTr("룸 또는 호스트 검색")
                         text: lobbyModel.searchQuery
                         onTextChanged: lobbyModel.searchQuery = text
                     }
 
                     SegmentedTabs {
-                        Layout.preferredWidth: 420
+                        Layout.preferredWidth: Math.max(280, Math.min(420, root.width * 0.3))
+                        Layout.minimumWidth: 280
                         model: ["All", "Live", "Idle", "KR", "JP"]
                         currentIndex: lobbyModel.statusFilter === "Live" ? 1
                                     : lobbyModel.statusFilter === "Idle" ? 2
@@ -74,13 +82,16 @@ Item {
             id: grid
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: 24
-            Layout.rightMargin: 24
-            Layout.topMargin: 24
-            Layout.bottomMargin: 24
+            Layout.leftMargin: root.horizontalPadding
+            Layout.rightMargin: root.horizontalPadding
+            Layout.topMargin: root.horizontalPadding
+            Layout.bottomMargin: root.horizontalPadding
             clip: true
-            cellWidth: Math.max(420, width / 2 - 16)
+            cellWidth: root.columnCount === 2
+                       ? Math.floor((width - root.gridGap) / 2)
+                       : width
             cellHeight: 232
+            boundsBehavior: Flickable.StopAtBounds
             model: lobbyModel
 
             delegate: CardPanel {
@@ -94,7 +105,7 @@ Item {
                 required property int memberCount
                 required property int sourceIndex
 
-                width: grid.cellWidth - 18
+                width: grid.cellWidth - (root.columnCount === 2 ? root.gridGap / 2 : 0)
                 height: grid.cellHeight - 18
 
                 MouseArea {

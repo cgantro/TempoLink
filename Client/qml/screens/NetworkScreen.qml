@@ -5,6 +5,13 @@ import TempoLink
 import "../components"
 
 Item {
+    id: root
+
+    readonly property int outerPadding: Math.max(18, Math.min(24, Math.round(width * 0.016)))
+    readonly property int sidePanelWidth: Math.max(260, Math.min(360, Math.round(width * 0.28)))
+    readonly property real latencyBarWidth: Math.max(10, Math.min(22,
+        (latencyChart.width - Math.max(0, (latencySeries.length - 1) * latencyChart.spacing)) / Math.max(1, latencySeries.length)))
+
     Rectangle {
         anchors.fill: parent
         color: Theme.background
@@ -35,12 +42,15 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 24
+            spacing: root.outerPadding
 
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 24
+                Layout.leftMargin: root.outerPadding
+                Layout.topMargin: root.outerPadding
+                Layout.bottomMargin: root.outerPadding
+                spacing: root.outerPadding
 
                 CardPanel {
                     Layout.fillWidth: true
@@ -65,13 +75,15 @@ Item {
                         }
 
                         Row {
+                            id: latencyChart
+                            width: parent.width
                             spacing: 8
                             Repeater {
                                 model: latencySeries
 
                                 Rectangle {
                                     required property int modelData
-                                    width: 22
+                                    width: root.latencyBarWidth
                                     height: Math.max(26, modelData * 4)
                                     radius: 4
                                     color: modelData <= 15 ? Theme.good : modelData <= 30 ? Theme.gold : Theme.warn
@@ -172,9 +184,14 @@ Item {
             }
 
             ColumnLayout {
-                Layout.preferredWidth: 320
+                Layout.preferredWidth: root.sidePanelWidth
+                Layout.minimumWidth: 260
+                Layout.maximumWidth: 360
                 Layout.fillHeight: true
-                spacing: 24
+                Layout.topMargin: root.outerPadding
+                Layout.rightMargin: root.outerPadding
+                Layout.bottomMargin: root.outerPadding
+                spacing: root.outerPadding
 
                 CardPanel {
                     Layout.fillWidth: true

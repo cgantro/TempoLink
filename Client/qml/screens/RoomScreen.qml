@@ -5,6 +5,12 @@ import TempoLink
 import "../components"
 
 Item {
+    id: root
+
+    readonly property int outerPadding: Math.max(16, Math.min(24, Math.round(width * 0.016)))
+    readonly property int leftPanelWidth: Math.max(240, Math.min(300, Math.round(width * 0.22)))
+    readonly property int rightPanelWidth: Math.max(260, Math.min(340, Math.round(width * 0.24)))
+
     property var chatSeed: [
         { who: "윤도현", text: "다들 모니터 레벨 괜찮아요?", mine: false, time: "21:03" },
         { who: "Moonlight", text: "인트로부터 가면 됩니다.", mine: true, time: "21:04" },
@@ -61,7 +67,9 @@ Item {
             spacing: 0
 
             Rectangle {
-                Layout.preferredWidth: 290
+                Layout.preferredWidth: root.leftPanelWidth
+                Layout.minimumWidth: 240
+                Layout.maximumWidth: 300
                 Layout.fillHeight: true
                 color: Theme.backgroundDeep
                 border.color: Theme.line
@@ -176,9 +184,9 @@ Item {
                 clip: true
 
                 ColumnLayout {
-                    x: 20
-                    y: 20
-                    width: Math.max(parent.availableWidth - 40, 0)
+                    x: root.outerPadding
+                    y: root.outerPadding
+                    width: Math.max(parent.availableWidth - root.outerPadding * 2, 0)
                     spacing: 14
 
                     Repeater {
@@ -240,7 +248,9 @@ Item {
             }
 
             Rectangle {
-                Layout.preferredWidth: 312
+                Layout.preferredWidth: root.rightPanelWidth
+                Layout.minimumWidth: 260
+                Layout.maximumWidth: 340
                 Layout.fillHeight: true
                 color: Theme.backgroundDeep
                 border.color: Theme.line
