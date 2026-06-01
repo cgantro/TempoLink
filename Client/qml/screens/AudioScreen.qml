@@ -7,6 +7,7 @@ import "../components"
 Item {
     id: root
 
+    readonly property bool stacked: width < 1280
     readonly property int outerPadding: Math.max(18, Math.min(24, Math.round(width * 0.016)))
     readonly property int sidePanelWidth: Math.max(260, Math.min(360, Math.round(width * 0.28)))
     readonly property int latencyValueSize: Math.max(42, Math.min(64, Math.round(width * 0.044)))
@@ -36,100 +37,115 @@ Item {
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 24
+            columns: root.stacked ? 1 : 2
+            rowSpacing: root.outerPadding
+            columnSpacing: root.outerPadding
 
             ScrollView {
+                id: audioScroll
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.column: 0
+                Layout.row: 0
                 Layout.leftMargin: root.outerPadding
                 Layout.topMargin: root.outerPadding
-                Layout.bottomMargin: root.outerPadding
+                Layout.rightMargin: root.stacked ? root.outerPadding : 0
+                Layout.bottomMargin: root.stacked ? 0 : root.outerPadding
                 clip: true
 
-                ColumnLayout {
-                    x: root.outerPadding
-                    y: root.outerPadding
-                    width: Math.max(parent.availableWidth - root.outerPadding * 2, 0)
-                    spacing: root.outerPadding
+                contentWidth: availableWidth
 
-                    CardPanel {
-                        Layout.fillWidth: true
-                        implicitHeight: 200
+                Item {
+                    width: Math.max(audioScroll.availableWidth, 0)
+                    implicitHeight: audioCards.implicitHeight + root.outerPadding * 2
 
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
-                            spacing: 14
+                    ColumnLayout {
+                        id: audioCards
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: root.outerPadding
+                        spacing: root.outerPadding
 
-                            Text {
-                                text: qsTr("입력 장치")
-                                color: Theme.ink
-                                font.family: Theme.displayFont
-                                font.pixelSize: 24
-                            }
+                        CardPanel {
+                            Layout.fillWidth: true
+                            implicitHeight: 200
 
-                            SelectBox {
-                                Layout.fillWidth: true
-                                model: deviceFacade.inputDevices
-                                currentIndex: Math.max(0, deviceFacade.inputDevices.indexOf(deviceFacade.selectedInputDevice))
-                                onActivated: deviceFacade.selectInputDevice(currentText)
-                            }
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 14
 
-                            Text {
-                                text: qsTr("입력 레벨")
-                                color: Theme.inkFaint
-                                font.family: Theme.uiFont
-                                font.pixelSize: 12
-                            }
+                                Text {
+                                    text: qsTr("입력 장치")
+                                    color: Theme.ink
+                                    font.family: Theme.displayFont
+                                    font.pixelSize: 24
+                                }
 
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 10
-                                radius: 5
-                                color: Theme.background
-                                border.color: Theme.line
+                                SelectBox {
+                                    Layout.fillWidth: true
+                                    model: deviceFacade.inputDevices
+                                    currentIndex: Math.max(0, deviceFacade.inputDevices.indexOf(deviceFacade.selectedInputDevice))
+                                    onActivated: deviceFacade.selectInputDevice(currentText)
+                                }
+
+                                Text {
+                                    text: qsTr("입력 레벨")
+                                    color: Theme.inkFaint
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 12
+                                }
 
                                 Rectangle {
-                                    width: parent.width * Math.max(0.04, deviceFacade.inputLevel)
-                                    height: parent.height
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 10
                                     radius: 5
-                                    color: Theme.gold
+                                    color: Theme.background
+                                    border.color: Theme.line
+
+                                    Rectangle {
+                                        width: parent.width * Math.max(0.04, deviceFacade.inputLevel)
+                                        height: parent.height
+                                        radius: 5
+                                        color: Theme.gold
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    CardPanel {
-                        Layout.fillWidth: true
-                        implicitHeight: 168
+                        CardPanel {
+                            Layout.fillWidth: true
+                            implicitHeight: 168
 
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
-                            spacing: 14
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 14
 
-                            Text {
-                                text: qsTr("출력 장치")
-                                color: Theme.ink
-                                font.family: Theme.displayFont
-                                font.pixelSize: 24
-                            }
+                                Text {
+                                    text: qsTr("출력 장치")
+                                    color: Theme.ink
+                                    font.family: Theme.displayFont
+                                    font.pixelSize: 24
+                                }
 
-                            SelectBox {
-                                Layout.fillWidth: true
-                                model: deviceFacade.outputDevices
-                                currentIndex: Math.max(0, deviceFacade.outputDevices.indexOf(deviceFacade.selectedOutputDevice))
-                                onActivated: deviceFacade.selectOutputDevice(currentText)
-                            }
+                                SelectBox {
+                                    Layout.fillWidth: true
+                                    model: deviceFacade.outputDevices
+                                    currentIndex: Math.max(0, deviceFacade.outputDevices.indexOf(deviceFacade.selectedOutputDevice))
+                                    onActivated: deviceFacade.selectOutputDevice(currentText)
+                                }
 
-                            Text {
-                                text: qsTr("현재 장치로 모니터링 중입니다.")
-                                color: Theme.inkSoft
-                                font.family: Theme.uiFont
-                                font.pixelSize: 13
+                                Text {
+                                    text: qsTr("현재 장치로 모니터링 중입니다.")
+                                    color: Theme.inkSoft
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 13
+                                }
                             }
                         }
                     }
@@ -137,11 +153,15 @@ Item {
             }
 
             ColumnLayout {
+                Layout.column: root.stacked ? 0 : 1
+                Layout.row: root.stacked ? 1 : 0
                 Layout.preferredWidth: root.sidePanelWidth
                 Layout.minimumWidth: 260
                 Layout.maximumWidth: 360
-                Layout.fillHeight: true
-                Layout.topMargin: root.outerPadding
+                Layout.fillWidth: root.stacked
+                Layout.fillHeight: !root.stacked
+                Layout.topMargin: root.stacked ? 0 : root.outerPadding
+                Layout.leftMargin: root.stacked ? root.outerPadding : 0
                 Layout.rightMargin: root.outerPadding
                 Layout.bottomMargin: root.outerPadding
                 spacing: root.outerPadding

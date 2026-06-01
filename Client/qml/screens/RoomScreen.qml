@@ -7,6 +7,7 @@ import "../components"
 Item {
     id: root
 
+    readonly property int layoutMode: width < 1180 ? 1 : width < 1380 ? 2 : 3
     readonly property int outerPadding: Math.max(16, Math.min(24, Math.round(width * 0.016)))
     readonly property int leftPanelWidth: Math.max(240, Math.min(300, Math.round(width * 0.22)))
     readonly property int rightPanelWidth: Math.max(260, Math.min(340, Math.round(width * 0.24)))
@@ -61,16 +62,23 @@ Item {
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            columns: root.layoutMode
+            rowSpacing: 0
+            columnSpacing: 0
 
             Rectangle {
+                Layout.row: 0
+                Layout.column: 0
+                Layout.columnSpan: 1
                 Layout.preferredWidth: root.leftPanelWidth
                 Layout.minimumWidth: 240
                 Layout.maximumWidth: 300
-                Layout.fillHeight: true
+                Layout.fillWidth: root.layoutMode !== 3
+                Layout.fillHeight: root.layoutMode === 3
+                Layout.preferredHeight: root.layoutMode === 3 ? -1 : (root.layoutMode === 2 ? 260 : 220)
                 color: Theme.backgroundDeep
                 border.color: Theme.line
                 border.width: 1
@@ -179,67 +187,86 @@ Item {
             }
 
             ScrollView {
+                id: participantScroll
+                Layout.row: root.layoutMode === 1 ? 1 : 0
+                Layout.column: root.layoutMode === 1 ? 0 : 1
+                Layout.columnSpan: 1
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumWidth: root.layoutMode === 3 ? 420 : 0
                 clip: true
 
-                ColumnLayout {
-                    x: root.outerPadding
-                    y: root.outerPadding
-                    width: Math.max(parent.availableWidth - root.outerPadding * 2, 0)
-                    spacing: 14
+                contentWidth: availableWidth
 
-                    Repeater {
-                        model: participantModel
+                Item {
+                    width: Math.max(participantScroll.availableWidth, 0)
+                    implicitHeight: participantCards.implicitHeight + root.outerPadding * 2
 
-                        CardPanel {
-                            id: participantCard
-                            required property int index
-                            required property string name
-                            required property string instrument
-                            required property string region
-                            required property int rtt
+                    ColumnLayout {
+                        id: participantCards
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: root.outerPadding
+                        spacing: 14
 
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 92
+                        Repeater {
+                            model: participantModel
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 16
-                                spacing: 16
+                            CardPanel {
+                                id: participantCard
+                                required property int index
+                                required property string name
+                                required property string instrument
+                                required property string region
+                                required property int rtt
 
-                                AvatarChip {
-                                    size: 44
-                                    name: participantCard.name
-                                    instrument: participantCard.instrument
-                                }
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 92
 
-                                Column {
-                                    spacing: 3
-                                    Text {
-                                        text: participantCard.name
-                                        color: Theme.ink
-                                        font.family: Theme.uiFont
-                                        font.pixelSize: 15
-                                        font.weight: Font.DemiBold
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 16
+                                    spacing: 16
+
+                                    AvatarChip {
+                                        size: 44
+                                        name: participantCard.name
+                                        instrument: participantCard.instrument
                                     }
-                                    Text {
-                                        text: participantCard.instrument + " / " + participantCard.region
-                                        color: Theme.inkFaint
-                                        font.family: Theme.monoFont
-                                        font.pixelSize: 10
+
+                                    Column {
+                                        Layout.preferredWidth: 120
+                                        spacing: 3
+                                        Text {
+                                            width: parent.width
+                                            text: participantCard.name
+                                            color: Theme.ink
+                                            font.family: Theme.uiFont
+                                            font.pixelSize: 15
+                                            font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: participantCard.instrument + " / " + participantCard.region
+                                            color: Theme.inkFaint
+                                            font.family: Theme.monoFont
+                                            font.pixelSize: 10
+                                            elide: Text.ElideRight
+                                        }
                                     }
-                                }
 
-                                WaveformStrip {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 34
-                                    bars: 44
-                                    seed: participantCard.index + 4
-                                }
+                                    WaveformStrip {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 34
+                                        bars: 44
+                                        seed: participantCard.index + 4
+                                    }
 
-                                MetricPill {
-                                    value: participantCard.rtt
+                                    MetricPill {
+                                        value: participantCard.rtt
+                                    }
                                 }
                             }
                         }
@@ -248,10 +275,15 @@ Item {
             }
 
             Rectangle {
+                Layout.row: root.layoutMode === 3 ? 0 : (root.layoutMode === 2 ? 1 : 2)
+                Layout.column:  root.layoutMode === 3 ? 2 : 0
+                Layout.columnSpan: root.layoutMode === 2 ? 2 : 1
                 Layout.preferredWidth: root.rightPanelWidth
                 Layout.minimumWidth: 260
                 Layout.maximumWidth: 340
-                Layout.fillHeight: true
+                Layout.fillWidth: root.layoutMode !== 3
+                Layout.fillHeight: root.layoutMode === 3
+                Layout.preferredHeight: root.layoutMode === 3 ? -1 : (root.layoutMode === 2 ? 240 : 280)
                 color: Theme.backgroundDeep
                 border.color: Theme.line
                 border.width: 1
@@ -268,42 +300,59 @@ Item {
                         font.pixelSize: 22
                     }
 
-                    Repeater {
-                        model: chatSeed
+                    ScrollView {
+                        id: chatScroll
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        contentWidth: availableWidth
 
-                        Rectangle {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            implicitHeight: msg.implicitHeight + 26
-                            radius: 10
-                            color: modelData.mine ? "#20365a" : Theme.panel
-                            border.color: modelData.mine ? Theme.gold : Theme.line
-                            border.width: 1
+                        Item {
+                            width: Math.max(chatScroll.availableWidth, 0)
+                            implicitHeight: chatColumn.implicitHeight
 
-                            Column {
-                                anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 4
-                                Text {
-                                    text: modelData.who + " / " + modelData.time
-                                    color: modelData.mine ? Theme.gold : Theme.inkFaint
-                                    font.family: Theme.monoFont
-                                    font.pixelSize: 10
-                                }
-                                Text {
-                                    id: msg
-                                    width: parent.width
-                                    wrapMode: Text.WordWrap
-                                    text: modelData.text
-                                    color: Theme.ink
-                                    font.family: Theme.uiFont
-                                    font.pixelSize: 13
+                            ColumnLayout {
+                                id: chatColumn
+                                width: parent.width
+                                spacing: 10
+
+                                Repeater {
+                                    model: chatSeed
+
+                                    Rectangle {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: msg.implicitHeight + 26
+                                        radius: 10
+                                        color: modelData.mine ? "#20365a" : Theme.panel
+                                        border.color: modelData.mine ? Theme.gold : Theme.line
+                                        border.width: 1
+
+                                        Column {
+                                            anchors.fill: parent
+                                            anchors.margins: 12
+                                            spacing: 4
+                                            Text {
+                                                text: modelData.who + " / " + modelData.time
+                                                color: modelData.mine ? Theme.gold : Theme.inkFaint
+                                                font.family: Theme.monoFont
+                                                font.pixelSize: 10
+                                            }
+                                            Text {
+                                                id: msg
+                                                width: parent.width
+                                                wrapMode: Text.WordWrap
+                                                text: modelData.text
+                                                color: Theme.ink
+                                                font.family: Theme.uiFont
+                                                font.pixelSize: 13
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-
-                    Item { Layout.fillHeight: true }
 
                     PrimaryButton {
                         Layout.fillWidth: true

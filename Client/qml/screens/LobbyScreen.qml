@@ -78,8 +78,8 @@ Item {
             }
         }
 
-        GridView {
-            id: grid
+        ScrollView {
+            id: lobbyScroll
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: root.horizontalPadding
@@ -87,117 +87,134 @@ Item {
             Layout.topMargin: root.horizontalPadding
             Layout.bottomMargin: root.horizontalPadding
             clip: true
-            cellWidth: root.columnCount === 2
-                       ? Math.floor((width - root.gridGap) / 2)
-                       : width
-            cellHeight: 232
-            boundsBehavior: Flickable.StopAtBounds
-            model: lobbyModel
+            contentWidth: availableWidth
 
-            delegate: CardPanel {
-                required property int index
-                required property string name
-                required property string host
-                required property string region
-                required property int bpm
-                required property int rtt
-                required property bool live
-                required property int memberCount
-                required property int sourceIndex
+            Item {
+                width: Math.max(lobbyScroll.availableWidth, 0)
+                implicitHeight: lobbyGrid.implicitHeight
 
-                width: grid.cellWidth - (root.columnCount === 2 ? root.gridGap / 2 : 0)
-                height: grid.cellHeight - 18
+                GridLayout {
+                    id: lobbyGrid
+                    width: parent.width
+                    columns: root.columnCount
+                    rowSpacing: root.gridGap
+                    columnSpacing: root.gridGap
 
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: sessionFacade.joinRoom(sourceIndex)
-                }
+                    Repeater {
+                        model: lobbyModel
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 14
+                        CardPanel {
+                            required property int index
+                            required property string name
+                            required property string host
+                            required property string region
+                            required property int bpm
+                            required property int rtt
+                            required property bool live
+                            required property int memberCount
+                            required property int sourceIndex
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: Math.max(320, (lobbyGrid.width - Math.max(0, (lobbyGrid.columns - 1) * lobbyGrid.columnSpacing)) / Math.max(1, lobbyGrid.columns))
+                            Layout.preferredHeight: 214
 
-                        StatusBadge {
-                            text: live ? qsTr("연주 중") : qsTr("대기")
-                            tone: live ? "gold" : "good"
-                        }
-
-                        StatusBadge {
-                            text: region
-                            tone: "good"
-                        }
-
-                        Rectangle {
-                            radius: 999
-                            border.color: Theme.line
-                            border.width: 1
-                            color: "transparent"
-                            implicitHeight: 28
-                            implicitWidth: bpmLabel.implicitWidth + 20
-
-                            Text {
-                                id: bpmLabel
-                                anchors.centerIn: parent
-                                text: bpm + " BPM"
-                                color: Theme.inkSoft
-                                font.family: Theme.monoFont
-                                font.pixelSize: 11
+                            MouseArea {
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: sessionFacade.joinRoom(sourceIndex)
                             }
-                        }
-                    }
 
-                    Text {
-                        text: name
-                        color: Theme.ink
-                        font.family: Theme.displayFont
-                        font.pixelSize: 28
-                        font.weight: Font.DemiBold
-                    }
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 18
+                                spacing: 14
 
-                    Text {
-                        text: "HOST / " + host
-                        color: Theme.inkFaint
-                        font.family: Theme.monoFont
-                        font.pixelSize: 11
-                    }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
 
-                    WaveformStrip {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 38
-                        bars: 36
-                        seed: index + 3
-                        barColor: live ? Theme.steel : Theme.inkFaint
-                        barOpacity: live ? 1.0 : 0.45
-                    }
+                                    StatusBadge {
+                                        text: live ? qsTr("연주 중") : qsTr("대기")
+                                        tone: live ? "gold" : "good"
+                                    }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
+                                    StatusBadge {
+                                        text: region
+                                        tone: "good"
+                                    }
 
-                        Text {
-                            text: qsTr("%1명 참여 중").arg(memberCount)
-                            color: Theme.inkSoft
-                            font.family: Theme.uiFont
-                            font.pixelSize: 13
-                        }
+                                    Rectangle {
+                                        radius: 999
+                                        border.color: Theme.line
+                                        border.width: 1
+                                        color: "transparent"
+                                        implicitHeight: 28
+                                        implicitWidth: bpmLabel.implicitWidth + 20
 
-                        Item { Layout.fillWidth: true }
+                                        Text {
+                                            id: bpmLabel
+                                            anchors.centerIn: parent
+                                            text: bpm + " BPM"
+                                            color: Theme.inkSoft
+                                            font.family: Theme.monoFont
+                                            font.pixelSize: 11
+                                        }
+                                    }
+                                }
 
-                        MetricPill {
-                            value: rtt
-                        }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: name
+                                    color: Theme.ink
+                                    font.family: Theme.displayFont
+                                    font.pixelSize: 28
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
 
-                        PrimaryButton {
-                            compact: true
-                            text: qsTr("입장")
-                            onClicked: sessionFacade.joinRoom(sourceIndex)
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "HOST / " + host
+                                    color: Theme.inkFaint
+                                    font.family: Theme.monoFont
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+
+                                WaveformStrip {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 38
+                                    bars: 36
+                                    seed: index + 3
+                                    barColor: live ? Theme.steel : Theme.inkFaint
+                                    barOpacity: live ? 1.0 : 0.45
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 12
+
+                                    Text {
+                                        text: qsTr("%1명 참여 중").arg(memberCount)
+                                        color: Theme.inkSoft
+                                        font.family: Theme.uiFont
+                                        font.pixelSize: 13
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+
+                                    MetricPill {
+                                        value: rtt
+                                    }
+
+                                    PrimaryButton {
+                                        compact: true
+                                        text: qsTr("입장")
+                                        onClicked: sessionFacade.joinRoom(sourceIndex)
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -7,6 +7,7 @@ import "../components"
 Item {
     id: root
 
+    readonly property bool stacked: width < 1280
     readonly property int outerPadding: Math.max(18, Math.min(24, Math.round(width * 0.016)))
     readonly property int sidePanelWidth: Math.max(260, Math.min(360, Math.round(width * 0.28)))
     readonly property real latencyBarWidth: Math.max(10, Math.min(22,
@@ -39,17 +40,22 @@ Item {
             }
         }
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: root.outerPadding
+            columns: root.stacked ? 1 : 2
+            rowSpacing: root.outerPadding
+            columnSpacing: root.outerPadding
 
             ColumnLayout {
+                Layout.column: 0
+                Layout.row: 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.leftMargin: root.outerPadding
                 Layout.topMargin: root.outerPadding
-                Layout.bottomMargin: root.outerPadding
+                Layout.rightMargin: root.stacked ? root.outerPadding : 0
+                Layout.bottomMargin: root.stacked ? 0 : root.outerPadding
                 spacing: root.outerPadding
 
                 CardPanel {
@@ -184,11 +190,15 @@ Item {
             }
 
             ColumnLayout {
+                Layout.column: root.stacked ? 0 : 1
+                Layout.row: root.stacked ? 1 : 0
                 Layout.preferredWidth: root.sidePanelWidth
                 Layout.minimumWidth: 260
                 Layout.maximumWidth: 360
-                Layout.fillHeight: true
-                Layout.topMargin: root.outerPadding
+                Layout.fillWidth: root.stacked
+                Layout.fillHeight: !root.stacked
+                Layout.topMargin: root.stacked ? 0 : root.outerPadding
+                Layout.leftMargin: root.stacked ? root.outerPadding : 0
                 Layout.rightMargin: root.outerPadding
                 Layout.bottomMargin: root.outerPadding
                 spacing: root.outerPadding

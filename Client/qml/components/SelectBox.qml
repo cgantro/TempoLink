@@ -6,6 +6,7 @@ import TempoLink
 ComboBox {
     id: control
 
+    implicitHeight: 48
     font.family: Theme.uiFont
     font.pixelSize: 14
 
@@ -17,6 +18,7 @@ ComboBox {
         color: Theme.ink
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
+        clip: true
     }
 
     background: Rectangle {

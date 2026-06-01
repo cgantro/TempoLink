@@ -8,6 +8,7 @@ Item {
     id: root
 
     property int currentTab: 0
+    readonly property bool stacked: width < 1240
     readonly property int pagePadding: Math.max(28, Math.min(72, Math.round(width * 0.04)))
     readonly property int sectionSpacing: Math.max(16, Math.min(28, Math.round(width * 0.016)))
     readonly property int heroTitleSize: Math.max(60, Math.min(96, Math.round(width * 0.062)))
@@ -18,14 +19,17 @@ Item {
         color: Theme.background
     }
 
-    RowLayout {
+    GridLayout {
         anchors.fill: parent
-        spacing: 0
+        columns: root.stacked ? 1 : 2
+        rowSpacing: 0
+        columnSpacing: 0
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredWidth: Math.max(root.width - root.authPaneWidth, root.width * 0.56)
             Layout.fillHeight: true
+            Layout.preferredWidth: root.stacked ? root.width : Math.max(root.width - root.authPaneWidth, root.width * 0.56)
+            Layout.preferredHeight: root.stacked ? Math.max(root.height * 0.5, 360) : -1
 
             ColumnLayout {
                 anchors.fill: parent
@@ -123,10 +127,12 @@ Item {
 
         Rectangle {
             id: authPane
-            Layout.preferredWidth: root.authPaneWidth
-            Layout.minimumWidth: 360
-            Layout.maximumWidth: 520
+            Layout.fillWidth: root.stacked
             Layout.fillHeight: true
+            Layout.preferredWidth: root.stacked ? root.width : root.authPaneWidth
+            Layout.minimumWidth: root.stacked ? 0 : 360
+            Layout.maximumWidth: root.stacked ? Number.MAX_VALUE : 520
+            Layout.preferredHeight: root.stacked ? Math.max(root.height * 0.5, 360) : -1
             color: Theme.backgroundDeep
             border.color: Theme.line
             border.width: 1
