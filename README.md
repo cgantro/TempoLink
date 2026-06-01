@@ -1,69 +1,93 @@
 # TempoLink
 
-온라인 합주 플랫폼 모노레포.
+> Native low-latency ensemble client for Windows and macOS
 
-## Repository Layout
+TempoLink는 실시간 온라인 합주를 위한 초저지연 P2P 오디오 클라이언트다.
+
+기존 화상회의 플랫폼은 대화 중심 구조이기 때문에,
+합주에 필요한 수준의 지연시간과 오디오 제어를 만족시키기 어렵다.
+
+TempoLink는 다음 방향을 기준으로 설계한다.
+
+- `Qt Quick/QML` 기반 네이티브 데스크톱 UI
+- `JUCE/C++` 기반 오디오 엔진 유지
+- `UDP` 기반 direct P2P 연결
+- UI 스레드와 오디오/네트워크 스레드 분리
+
+---
+
+# Why This Stack
+
+- 화면은 `Qt/QML`로 옮겨 디자인 밀도, 텍스트 대비, 상태 바인딩을 더 직접적으로 제어한다.
+- 오디오 세션은 `JUCE/C++`로 유지해 ASIO/CoreAudio 대응과 실시간 callback 구조를 보존한다.
+- 네트워크는 `standalone Asio + UDP`로 유지해 직접 연결과 낮은 전송 지연을 우선한다.
+
+상세 내용은 [docs/tech-stack.md](docs/tech-stack.md)에서 관리한다.
+
+---
+
+# Features
+
+- Native Windows/macOS desktop client
+- Qt Quick/QML based session UI
+- JUCE/C++ based audio device and session engine
+- Direct P2P UDP audio path
+- Low-latency device monitoring and session diagnostics
+
+---
+
+# Target Latency
+
+- Korea: `15ms` 이하
+- Japan: `30ms` 이하
+
+---
+
+# Architecture
 
 ```text
-TempoLink/
-  Cpp/                  # 실시간 오디오 데이터 플레인 (Client/P2P core)
-  SpringBoot/           # 컨트롤 플레인 API (로그인/방관리 확장 영역)
-  Docs/                 # 아키텍처/프로토콜/운영 문서
-  Scripts/              # 빌드/실행/CI 보조 스크립트
-  Assets/               # UI/오디오/테스트 리소스
++--------------------------------------+
+|          TempoLink Desktop App       |
+|--------------------------------------|
+| UI Thread        (Qt Quick / QML)    |
+| Session State    (QObject facade)    |
+| Network Thread   (Asio UDP)          |
+| Audio Thread     (JUCE / C++)        |
++--------------------------------------+
+                   |
+            Direct P2P UDP
+                   |
+                 Peer
 ```
 
-## Current Components
+---
 
-1. `Cpp/Client/JuceApp`: JUCE 기반 클라이언트
-2. `Cpp/Client/RealtimeCore`: C++ 실시간 세션 코어 + 콘솔 클라이언트
-3. `Cpp/Shared`: 공통 C++ 코드
-4. `SpringBoot/ControlPlaneService`: 컨트롤 플레인 API(현재는 방 생성/입장/퇴장 중심)
+# Platform Support
 
-## C++ Build
+- Windows
+- macOS
 
-```powershell
-cmake --preset client-debug
-cmake --build --preset client-debug
-```
+---
 
-JUCE 클라이언트:
+# Status
 
-```powershell
-cmake --preset juce-client-debug
-cmake --build --preset juce-client-debug
-```
+In Progress
 
-Windows 초저지연 팁:
-1. JUCE 앱에서 `Require ASIO (Windows)` 활성화
-2. 버퍼 `64`(안정 시 `32`) + 48kHz 권장
+- UI stack migration: `JUCE UI -> Qt/QML`
+- Audio session engine: `C++/JUCE 유지`
+- Networking: `Asio UDP 유지`
 
-## SpringBoot Build/Run
+---
 
-Wrapper 생성(1회):
+# Documentation
 
-```bash
-./Scripts/build/spring-wrapper.sh
-```
+- [docs/architecture.md](docs/architecture.md)
+- [docs/networking.md](docs/networking.md)
+- [docs/audio-pipeline.md](docs/audio-pipeline.md)
+- [docs/tech-stack.md](docs/tech-stack.md)
 
-```bash
-./Scripts/run/control-plane.sh
-```
+---
 
-Windows PowerShell:
+# License
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\build\spring-wrapper.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\run\control-plane.ps1
-```
-
-## API (ControlPlaneService)
-
-1. `POST /api/rooms`
-2. `GET /api/rooms`
-3. `GET /api/rooms/{roomCode}`
-4. `POST /api/rooms/{roomCode}/join`
-5. `POST /api/rooms/{roomCode}/leave`
+MIT

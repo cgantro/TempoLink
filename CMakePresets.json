@@ -1,152 +1,66 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 24,
-    "patch": 0
-  },
   "configurePresets": [
     {
-      "name": "base-ninja",
+      "name": "base",
       "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "FETCHCONTENT_BASE_DIR": "${sourceDir}/.cmake_deps"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
-      "name": "base-win-ninja",
-      "hidden": true,
-      "inherits": "base-ninja",
+      "name": "windows",
+      "displayName": "Windows (Ninja)",
+      "inherits": "base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       },
       "cacheVariables": {
-        "OPENSSL_ROOT_DIR": "C:/Program Files/OpenSSL-Win64"
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64"
       }
     },
     {
-      "name": "base-linux-ninja",
-      "hidden": true,
-      "inherits": "base-ninja",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      }
-    },
-    {
-      "name": "base-macos-ninja",
-      "hidden": true,
-      "inherits": "base-ninja",
+      "name": "macos",
+      "displayName": "macOS (Ninja)",
+      "inherits": "base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Darwin"
-      }
-    },
-    {
-      "name": "client-debug",
-      "inherits": "base-ninja",
+      },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_CLIENT": "ON"
+        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64"
       }
-    },
-    {
-      "name": "full-debug",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_CLIENT": "ON",
-        "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF"
-      }
-    },
-    {
-      "name": "full-debug-with-codecs",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_CLIENT": "ON",
-        "TEMPOLINK_BUILD_JUCE_CLIENT": "OFF",
-        "TEMPOLINK_ENABLE_BOOST": "ON",
-        "TEMPOLINK_ENABLE_OPUS": "ON"
-      }
-    },
-    {
-      "name": "juce-client-debug",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "TEMPOLINK_BUILD_CLIENT": "OFF",
-        "TEMPOLINK_BUILD_JUCE_CLIENT": "ON",
-        "TEMPOLINK_FETCH_JUCE": "ON"
-      }
-    },
-    {
-      "name": "juce-client-release",
-      "inherits": "base-ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "TEMPOLINK_BUILD_CLIENT": "OFF",
-        "TEMPOLINK_BUILD_JUCE_CLIENT": "ON",
-        "TEMPOLINK_FETCH_JUCE": "ON"
-      }
-    },
-    {
-      "name": "client-debug-win",
-      "inherits": ["base-win-ninja", "client-debug"]
-    },
-    {
-      "name": "client-debug-linux",
-      "inherits": ["base-linux-ninja", "client-debug"]
-    },
-    {
-      "name": "client-debug-macos",
-      "inherits": ["base-macos-ninja", "client-debug"]
     }
   ],
   "buildPresets": [
     {
-      "name": "client-debug",
-      "configurePreset": "client-debug",
-      "jobs": 0
+      "name": "windows-debug",
+      "displayName": "Windows Debug",
+      "configurePreset": "windows",
+      "configuration": "Debug"
     },
     {
-      "name": "full-debug",
-      "configurePreset": "full-debug",
-      "jobs": 0
+      "name": "windows-release",
+      "displayName": "Windows Release",
+      "configurePreset": "windows",
+      "configuration": "Release"
     },
     {
-      "name": "full-debug-with-codecs",
-      "configurePreset": "full-debug-with-codecs",
-      "jobs": 0
+      "name": "macos-debug",
+      "displayName": "macOS Debug",
+      "configurePreset": "macos",
+      "configuration": "Debug"
     },
     {
-      "name": "juce-client-debug",
-      "configurePreset": "juce-client-debug",
-      "jobs": 0
-    },
-    {
-      "name": "juce-client-release",
-      "configurePreset": "juce-client-release",
-      "jobs": 0
-    },
-    {
-      "name": "client-debug-win",
-      "configurePreset": "client-debug-win"
-    },
-    {
-      "name": "client-debug-linux",
-      "configurePreset": "client-debug-linux"
-    },
-    {
-      "name": "client-debug-macos",
-      "configurePreset": "client-debug-macos"
+      "name": "macos-release",
+      "displayName": "macOS Release",
+      "configurePreset": "macos",
+      "configuration": "Release"
     }
   ]
 }

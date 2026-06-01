@@ -1,21 +1,29 @@
-out/
+# Build
 build/
+out/
+cmake-build-*/
+
+# IDE
+.vscode/
 .idea/
-.vs/
 *.user
-*.vcxproj.user
-.gradle/
-SpringBoot/ControlPlaneService/build/
-SpringBoot/ControlPlaneService/bin/
-SpringBoot/ControlPlaneService/.gradle/
+*.suo
 
-.env
-.env.client
-.env.server
-.env.local
-.env.deploy
-!.env.client.example
-!.env.server.example
+# OS
+.DS_Store
+Thumbs.db
 
-# CMake FetchContent Cache
-.cmake_deps/
+# JUCE
+JuceLibraryCode/
+
+# Compiled
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.dylib
+*.exe
+
+# Logs
+*.log
