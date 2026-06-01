@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import TempoLink
+import "."
 
 Item {
     id: root
@@ -13,9 +14,8 @@ Item {
 
     default property alias screenContent: screenHost.data
 
-    Rectangle {
+    MistyBackdrop {
         anchors.fill: parent
-        color: Theme.background
     }
 
     ColumnLayout {
@@ -24,17 +24,30 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 56
-            color: Theme.backgroundDeep
-            border.color: Theme.line
+            Layout.preferredHeight: 64
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#232323" }
+                GradientStop { position: 0.24; color: Theme.chromeSoft }
+                GradientStop { position: 1.0; color: Theme.chrome }
+            }
+            border.color: Theme.chromeEdge
             border.width: 1
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: "#96ffffff"
+                opacity: 0.18
+            }
 
             Text {
                 anchors.centerIn: parent
                 text: "TEMPOLINK"
                 color: Theme.inkSoft
                 font.family: Theme.displayFont
-                font.pixelSize: 16
+                font.pixelSize: 18
                 font.weight: Font.DemiBold
             }
 
@@ -53,6 +66,7 @@ Item {
 
                 Text {
                     text: root.statusText
+                    visible: text.length > 0
                     color: Theme.inkSoft
                     font.family: Theme.uiFont
                     font.pixelSize: 12
@@ -67,22 +81,34 @@ Item {
 
             Rectangle {
                 visible: root.showRail
-                Layout.preferredWidth: root.showRail ? 96 : 0
+                Layout.preferredWidth: root.showRail ? 122 : 0
                 Layout.fillHeight: true
-                color: Theme.backgroundDeep
-                border.color: Theme.line
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#141414" }
+                    GradientStop { position: 1.0; color: "#0a0a0a" }
+                }
+                border.color: "#2f2f2f"
                 border.width: root.showRail ? 1 : 0
 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 12
+                    anchors.margins: 14
+                    spacing: 14
 
-                    Text {
-                        text: "◐"
-                        color: Theme.gold
-                        font.pixelSize: 22
+                    Rectangle {
+                        width: 70
+                        height: 54
+                        radius: 12
                         anchors.horizontalCenter: parent.horizontalCenter
+                        color: "#15181d"
+                        border.color: "#303030"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "◐"
+                            color: Theme.gold
+                            font.pixelSize: 22
+                        }
                     }
 
                     Repeater {
@@ -95,11 +121,12 @@ Item {
 
                         Rectangle {
                             required property var modelData
-                            width: 64
-                            height: 58
-                            radius: 10
-                            color: root.currentScreen === modelData.key ? "#1a2b4f" : "transparent"
-                            border.color: root.currentScreen === modelData.key ? Theme.gold : "transparent"
+                            width: 82
+                            height: 74
+                            radius: 12
+                            color: root.currentScreen === modelData.key ? "#1e1e1e" : "#101010"
+                            border.color: root.currentScreen === modelData.key ? Theme.gold : "#2e2e2e"
+                            border.width: 1
                             anchors.horizontalCenter: parent.horizontalCenter
 
                             MouseArea {
@@ -114,9 +141,9 @@ Item {
                                 spacing: 4
 
                                 Rectangle {
-                                    width: 16
-                                    height: 16
-                                    radius: 8
+                                    width: 18
+                                    height: 18
+                                    radius: 9
                                     color: root.currentScreen === modelData.key ? Theme.gold : Theme.inkFaint
                                     anchors.horizontalCenter: parent.horizontalCenter
                                 }
@@ -125,7 +152,7 @@ Item {
                                     text: modelData.label
                                     color: root.currentScreen === modelData.key ? Theme.gold : Theme.inkFaint
                                     font.family: Theme.uiFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 11
                                     font.weight: Font.DemiBold
                                     anchors.horizontalCenter: parent.horizontalCenter
                                 }
@@ -139,7 +166,7 @@ Item {
                         text: "END"
                         color: Theme.inkFaint
                         font.family: Theme.monoFont
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
                 }

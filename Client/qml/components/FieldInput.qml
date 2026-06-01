@@ -18,8 +18,11 @@ TextField {
 
     background: Rectangle {
         radius: Theme.smallRadius
-        color: Theme.background
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#262b31" }
+            GradientStop { position: 1.0; color: "#0f1217" }
+        }
         border.width: 1
-        border.color: control.activeFocus ? Theme.gold : Theme.lineStrong
+        border.color: control.activeFocus ? Theme.gold : "#6f7681"
     }
 }

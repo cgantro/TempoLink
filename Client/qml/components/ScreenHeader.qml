@@ -27,7 +27,7 @@ ColumnLayout {
         text: root.title
         color: Theme.ink
         font.family: Theme.displayFont
-        font.pixelSize: 40
+        font.pixelSize: 42
         font.weight: Font.DemiBold
         elide: Text.ElideRight
         maximumLineCount: 1

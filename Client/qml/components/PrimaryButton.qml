@@ -8,8 +8,8 @@ Button {
     property string variant: "accent"
     property bool compact: false
 
-    implicitHeight: compact ? 36 : 48
-    implicitWidth: compact ? 92 : 150
+    implicitHeight: compact ? 38 : 50
+    implicitWidth: compact ? 96 : 158
 
     font.family: Theme.uiFont
     font.pixelSize: compact ? 12 : 14
@@ -29,11 +29,31 @@ Button {
         radius: compact ? Theme.smallRadius : Theme.radius
         border.width: 1
         border.color: control.variant === "danger" ? Theme.danger
-                    : control.variant === "ghost" ? Theme.lineStrong
+                    : control.variant === "ghost" ? "#787f89"
                     : Theme.gold
-        color: control.variant === "danger" ? Theme.danger
-             : control.variant === "ghost" ? "transparent"
-             : control.down ? Theme.goldDeep : Theme.gold
+        gradient: Gradient {
+            GradientStop {
+                position: 0.0
+                color: control.variant === "danger" ? "#de7d73"
+                     : control.variant === "ghost" ? "#2b3037"
+                     : control.down ? Theme.goldDeep : Theme.goldSoft
+            }
+            GradientStop {
+                position: 1.0
+                color: control.variant === "danger" ? Theme.danger
+                     : control.variant === "ghost" ? "#15191f"
+                     : control.down ? "#7f6934" : Theme.gold
+            }
+        }
         opacity: control.enabled ? 1.0 : 0.45
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            color: "transparent"
+            border.color: control.variant === "accent" ? "#42fff1c3" : "#18ffffff"
+            border.width: control.variant === "accent" ? 1 : 0
+        }
     }
 }

@@ -11,10 +11,13 @@ Rectangle {
     signal tabSelected(int index)
 
     radius: Theme.smallRadius
-    color: "transparent"
-    border.color: Theme.line
+    gradient: Gradient {
+        GradientStop { position: 0.0; color: "#252930" }
+        GradientStop { position: 1.0; color: "#101319" }
+    }
+    border.color: "#6b727d"
     border.width: 1
-    implicitHeight: 40
+    implicitHeight: 42
 
     RowLayout {
         anchors.fill: parent
@@ -47,7 +50,12 @@ Rectangle {
 
                 background: Rectangle {
                     radius: Theme.smallRadius - 1
-                    color: index === root.currentIndex ? Theme.gold : "transparent"
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: index === root.currentIndex ? Theme.goldSoft : "transparent" }
+                        GradientStop { position: 1.0; color: index === root.currentIndex ? Theme.gold : "transparent" }
+                    }
+                    border.color: index === root.currentIndex ? Theme.goldDeep : "#00000000"
+                    border.width: index === root.currentIndex ? 1 : 0
                 }
             }
         }

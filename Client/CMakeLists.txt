@@ -90,6 +90,7 @@ qt_add_qml_module(TempoLink
         qml/components/CardPanel.qml
         qml/components/FieldInput.qml
         qml/components/MetricPill.qml
+        qml/components/MistyBackdrop.qml
         qml/components/PrimaryButton.qml
         qml/components/ScreenHeader.qml
         qml/components/SegmentedTabs.qml

@@ -7,216 +7,396 @@ import "../components"
 Item {
     id: root
 
-    readonly property int columnCount: width >= 1320 ? 2 : 1
-    readonly property int horizontalPadding: Math.max(18, Math.min(28, Math.round(width * 0.018)))
-    readonly property int gridGap: Math.max(14, Math.min(18, Math.round(width * 0.012)))
+    readonly property int pagePadding: Math.max(18, Math.min(28, Math.round(width * 0.016)))
+    readonly property int browserWidth: width < 1500 ? 320 : 350
+    readonly property int detailWidth: width < 1500 ? 320 : 350
+    readonly property int cardWidth: width < 1500 ? 270 : 300
+
+    property string selectedName: ""
+    property string selectedHost: ""
+    property string selectedRegion: ""
+    property int selectedBpm: 0
+    property int selectedRtt: 0
+    property bool selectedLive: false
+    property int selectedMembers: 0
+    property int selectedSourceIndex: 0
+
+    function selectRoom(name, host, region, bpm, rtt, live, memberCount, sourceIndex) {
+        selectedName = name
+        selectedHost = host
+        selectedRegion = region
+        selectedBpm = bpm
+        selectedRtt = rtt
+        selectedLive = live
+        selectedMembers = memberCount
+        selectedSourceIndex = sourceIndex
+    }
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.background
+        color: Theme.veilSoft
     }
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: root.pagePadding
+        spacing: root.pagePadding
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 164
-            color: "transparent"
-            border.color: Theme.line
-            border.width: 1
+        CardPanel {
+            Layout.fillHeight: true
+            Layout.preferredWidth: root.browserWidth
+            Layout.minimumWidth: 300
+            Layout.maximumWidth: 360
+            raised: true
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: root.horizontalPadding
-                spacing: 18
+                anchors.margins: 18
+                spacing: 14
 
-                RowLayout {
+                Text {
+                    text: qsTr("Sessions")
+                    color: Theme.ink
+                    font.family: Theme.displayFont
+                    font.pixelSize: 28
+                    font.weight: Font.DemiBold
+                }
+
+                FieldInput {
                     Layout.fillWidth: true
+                    placeholderText: qsTr("검색")
+                    text: lobbyModel.searchQuery
+                    onTextChanged: lobbyModel.searchQuery = text
+                }
 
-                    ScreenHeader {
-                        eyebrow: "LOBBY / ACTIVE SESSIONS"
-                        title: qsTr("오늘의 합주실")
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    PrimaryButton {
-                        text: qsTr("첫 방으로 입장")
-                        onClicked: sessionFacade.joinRoom(0)
+                SegmentedTabs {
+                    Layout.fillWidth: true
+                    model: ["All", "Live", "Idle", "KR", "JP"]
+                    currentIndex: lobbyModel.statusFilter === "Live" ? 1
+                                : lobbyModel.statusFilter === "Idle" ? 2
+                                : lobbyModel.statusFilter === "KR" ? 3
+                                : lobbyModel.statusFilter === "JP" ? 4
+                                : 0
+                    onTabSelected: {
+                        const filters = ["All", "Live", "Idle", "KR", "JP"]
+                        lobbyModel.statusFilter = filters[index]
                     }
                 }
 
-                RowLayout {
+                ListView {
+                    id: browserList
                     Layout.fillWidth: true
-                    spacing: 16
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: 10
+                    model: lobbyModel
 
-                    FieldInput {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: Math.max(280, Math.min(420, root.width * 0.28))
-                        placeholderText: qsTr("룸 또는 호스트 검색")
-                        text: lobbyModel.searchQuery
-                        onTextChanged: lobbyModel.searchQuery = text
-                    }
+                    delegate: Rectangle {
+                        required property int index
+                        required property string name
+                        required property string host
+                        required property string region
+                        required property int bpm
+                        required property int rtt
+                        required property bool live
+                        required property int memberCount
+                        required property int sourceIndex
 
-                    SegmentedTabs {
-                        Layout.preferredWidth: Math.max(280, Math.min(420, root.width * 0.3))
-                        Layout.minimumWidth: 280
-                        model: ["All", "Live", "Idle", "KR", "JP"]
-                        currentIndex: lobbyModel.statusFilter === "Live" ? 1
-                                    : lobbyModel.statusFilter === "Idle" ? 2
-                                    : lobbyModel.statusFilter === "KR" ? 3
-                                    : lobbyModel.statusFilter === "JP" ? 4
-                                    : 0
-                        onTabSelected: {
-                            const filters = ["All", "Live", "Idle", "KR", "JP"]
-                            lobbyModel.statusFilter = filters[index]
+                        Component.onCompleted: {
+                            if (index === 0 && root.selectedName.length === 0)
+                                root.selectRoom(name, host, region, bpm, rtt, live, memberCount, sourceIndex)
+                        }
+
+                        width: browserList.width
+                        height: 82
+                        radius: 12
+                        color: root.selectedSourceIndex === sourceIndex ? "#191919" : "#101010"
+                        border.color: root.selectedSourceIndex === sourceIndex ? Theme.gold : "#2d2d2d"
+                        border.width: 1
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.selectRoom(parent.name, parent.host, parent.region, parent.bpm, parent.rtt,
+                                                       parent.live, parent.memberCount, parent.sourceIndex)
+                        }
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 6
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: name
+                                    color: Theme.ink
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 17
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+
+                                MetricPill {
+                                    value: rtt
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: host
+                                color: Theme.inkFaint
+                                font.family: Theme.uiFont
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
                         }
                     }
                 }
             }
         }
 
-        ScrollView {
-            id: lobbyScroll
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: root.horizontalPadding
-            Layout.rightMargin: root.horizontalPadding
-            Layout.topMargin: root.horizontalPadding
-            Layout.bottomMargin: root.horizontalPadding
-            clip: true
-            contentWidth: availableWidth
+            spacing: root.pagePadding
 
-            Item {
-                width: Math.max(lobbyScroll.availableWidth, 0)
-                implicitHeight: lobbyGrid.implicitHeight
+            RowLayout {
+                Layout.fillWidth: true
 
-                GridLayout {
-                    id: lobbyGrid
-                    width: parent.width
-                    columns: root.columnCount
-                    rowSpacing: root.gridGap
-                    columnSpacing: root.gridGap
+                Text {
+                    text: qsTr("Lobby")
+                    color: Theme.ink
+                    font.family: Theme.displayFont
+                    font.pixelSize: 34
+                    font.weight: Font.DemiBold
+                }
 
-                    Repeater {
-                        model: lobbyModel
+                Item { Layout.fillWidth: true }
 
-                        CardPanel {
-                            required property int index
-                            required property string name
-                            required property string host
-                            required property string region
-                            required property int bpm
-                            required property int rtt
-                            required property bool live
-                            required property int memberCount
-                            required property int sourceIndex
+                PrimaryButton {
+                    compact: true
+                    text: qsTr("입장")
+                    onClicked: sessionFacade.joinRoom(root.selectedSourceIndex)
+                }
+            }
 
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: Math.max(320, (lobbyGrid.width - Math.max(0, (lobbyGrid.columns - 1) * lobbyGrid.columnSpacing)) / Math.max(1, lobbyGrid.columns))
-                            Layout.preferredHeight: 214
+            CardPanel {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
 
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: sessionFacade.joinRoom(sourceIndex)
-                            }
+                ScrollView {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    clip: true
+                    contentWidth: availableWidth
 
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 18
-                                spacing: 14
+                    Flow {
+                        width: parent.availableWidth
+                        spacing: 14
 
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 8
+                        Repeater {
+                            model: lobbyModel
 
-                                    StatusBadge {
-                                        text: live ? qsTr("연주 중") : qsTr("대기")
-                                        tone: live ? "gold" : "good"
+                            Rectangle {
+                                required property int index
+                                required property string name
+                                required property string host
+                                required property string region
+                                required property int bpm
+                                required property int rtt
+                                required property bool live
+                                required property int memberCount
+                                required property int sourceIndex
+
+                                width: root.cardWidth
+                                height: 196
+                                radius: 14
+                                color: "#131313"
+                                border.color: root.selectedSourceIndex === sourceIndex ? Theme.gold : "#2f2f2f"
+                                border.width: 1
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.selectRoom(parent.name, parent.host, parent.region, parent.bpm, parent.rtt,
+                                                               parent.live, parent.memberCount, parent.sourceIndex)
+                                }
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 16
+                                    spacing: 10
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+
+                                        StatusBadge {
+                                            text: live ? qsTr("LIVE") : qsTr("READY")
+                                            tone: live ? "gold" : "good"
+                                        }
+
+                                        Item { Layout.fillWidth: true }
+
+                                        MetricPill {
+                                            value: rtt
+                                        }
                                     }
 
-                                    StatusBadge {
-                                        text: region
-                                        tone: "good"
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: name
+                                        color: Theme.ink
+                                        font.family: Theme.displayFont
+                                        font.pixelSize: 26
+                                        font.weight: Font.DemiBold
+                                        elide: Text.ElideRight
                                     }
 
-                                    Rectangle {
-                                        radius: 999
-                                        border.color: Theme.line
-                                        border.width: 1
-                                        color: "transparent"
-                                        implicitHeight: 28
-                                        implicitWidth: bpmLabel.implicitWidth + 20
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: host
+                                        color: Theme.inkFaint
+                                        font.family: Theme.uiFont
+                                        font.pixelSize: 13
+                                        elide: Text.ElideRight
+                                    }
+
+                                    WaveformStrip {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 36
+                                        bars: 24
+                                        seed: index + 7
+                                        barColor: Theme.gold
+                                        barOpacity: 0.75
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
 
                                         Text {
-                                            id: bpmLabel
-                                            anchors.centerIn: parent
+                                            text: region
+                                            color: Theme.inkSoft
+                                            font.family: Theme.monoFont
+                                            font.pixelSize: 11
+                                        }
+
+                                        Text {
                                             text: bpm + " BPM"
                                             color: Theme.inkSoft
                                             font.family: Theme.monoFont
                                             font.pixelSize: 11
                                         }
-                                    }
-                                }
 
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: name
-                                    color: Theme.ink
-                                    font.family: Theme.displayFont
-                                    font.pixelSize: 28
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                }
+                                        Item { Layout.fillWidth: true }
 
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "HOST / " + host
-                                    color: Theme.inkFaint
-                                    font.family: Theme.monoFont
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
-                                }
-
-                                WaveformStrip {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 38
-                                    bars: 36
-                                    seed: index + 3
-                                    barColor: live ? Theme.steel : Theme.inkFaint
-                                    barOpacity: live ? 1.0 : 0.45
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 12
-
-                                    Text {
-                                        text: qsTr("%1명 참여 중").arg(memberCount)
-                                        color: Theme.inkSoft
-                                        font.family: Theme.uiFont
-                                        font.pixelSize: 13
-                                    }
-
-                                    Item { Layout.fillWidth: true }
-
-                                    MetricPill {
-                                        value: rtt
-                                    }
-
-                                    PrimaryButton {
-                                        compact: true
-                                        text: qsTr("입장")
-                                        onClicked: sessionFacade.joinRoom(sourceIndex)
+                                        PrimaryButton {
+                                            compact: true
+                                            text: qsTr("입장")
+                                            onClicked: sessionFacade.joinRoom(sourceIndex)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                }
+            }
+        }
+
+        CardPanel {
+            Layout.fillHeight: true
+            Layout.preferredWidth: root.detailWidth
+            Layout.minimumWidth: 300
+            Layout.maximumWidth: 360
+            raised: true
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 14
+
+                Text {
+                    text: root.selectedName.length > 0 ? root.selectedName : qsTr("선택된 방")
+                    color: Theme.ink
+                    font.family: Theme.displayFont
+                    font.pixelSize: 28
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+
+                StatusBadge {
+                    text: root.selectedLive ? qsTr("LIVE") : qsTr("READY")
+                    tone: root.selectedLive ? "gold" : "good"
+                }
+
+                CardPanel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 140
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 10
+
+                        Text {
+                            text: root.selectedHost
+                            color: Theme.ink
+                            font.family: Theme.uiFont
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            text: root.selectedRegion + "  " + root.selectedBpm + " BPM"
+                            color: Theme.inkFaint
+                            font.family: Theme.monoFont
+                            font.pixelSize: 11
+                            elide: Text.ElideRight
+                        }
+
+                        MetricPill {
+                            value: root.selectedRtt
+                            large: true
+                        }
+                    }
+                }
+
+                CardPanel {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 10
+
+                        Text {
+                            text: qsTr("Members")
+                            color: Theme.inkSoft
+                            font.family: Theme.uiFont
+                            font.pixelSize: 14
+                        }
+
+                        Text {
+                            text: qsTr("%1명").arg(root.selectedMembers)
+                            color: Theme.ink
+                            font.family: Theme.displayFont
+                            font.pixelSize: 42
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                }
+
+                PrimaryButton {
+                    Layout.fillWidth: true
+                    variant: "ghost"
+                    text: qsTr("오디오")
+                    onClicked: appState.navigate("audio")
                 }
             }
         }

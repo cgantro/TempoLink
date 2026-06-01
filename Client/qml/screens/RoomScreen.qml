@@ -7,10 +7,10 @@ import "../components"
 Item {
     id: root
 
-    readonly property int layoutMode: width < 1180 ? 1 : width < 1380 ? 2 : 3
-    readonly property int outerPadding: Math.max(16, Math.min(24, Math.round(width * 0.016)))
-    readonly property int leftPanelWidth: Math.max(240, Math.min(300, Math.round(width * 0.22)))
-    readonly property int rightPanelWidth: Math.max(260, Math.min(340, Math.round(width * 0.24)))
+    readonly property int pagePadding: Math.max(16, Math.min(24, Math.round(width * 0.014)))
+    readonly property int leftPanelWidth: width < 1320 ? 260 : 290
+    readonly property int rightPanelWidth: width < 1320 ? 300 : 340
+    readonly property int stageTitleSize: width < 1320 ? 52 : 62
 
     property var chatSeed: [
         { who: "윤도현", text: "다들 모니터 레벨 괜찮아요?", mine: false, time: "21:03" },
@@ -20,134 +20,92 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.background
+        color: Theme.veil
     }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: root.pagePadding
+        spacing: root.pagePadding
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 112
-            color: "transparent"
-            border.color: Theme.line
-            border.width: 1
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 24
-                spacing: 16
-
-                ScreenHeader {
-                    eyebrow: sessionFacade.roomLive ? "ROOM / LIVE" : "ROOM / IDLE"
-                    title: sessionFacade.roomName
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Column {
-                    spacing: 2
-                    Text {
-                        text: qsTr("평균 지연")
-                        color: Theme.inkFaint
-                        font.family: Theme.monoFont
-                        font.pixelSize: 10
-                    }
-                    MetricPill {
-                        value: sessionFacade.roomRtt
-                        large: true
-                    }
-                }
-            }
-        }
-
-        GridLayout {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            columns: root.layoutMode
-            rowSpacing: 0
-            columnSpacing: 0
+            spacing: root.pagePadding
 
-            Rectangle {
-                Layout.row: 0
-                Layout.column: 0
-                Layout.columnSpan: 1
+            CardPanel {
+                Layout.fillHeight: true
                 Layout.preferredWidth: root.leftPanelWidth
-                Layout.minimumWidth: 240
+                Layout.minimumWidth: 250
                 Layout.maximumWidth: 300
-                Layout.fillWidth: root.layoutMode !== 3
-                Layout.fillHeight: root.layoutMode === 3
-                Layout.preferredHeight: root.layoutMode === 3 ? -1 : (root.layoutMode === 2 ? 260 : 220)
-                color: Theme.backgroundDeep
-                border.color: Theme.line
-                border.width: 1
+                raised: true
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 22
-                    spacing: 18
+                    anchors.margins: 18
+                    spacing: 16
 
                     Text {
-                        text: qsTr("내 채널")
+                        text: qsTr("Me")
                         color: Theme.gold
-                        font.family: Theme.uiFont
-                        font.pixelSize: 11
-                        font.weight: Font.Medium
+                        font.family: Theme.displayFont
+                        font.pixelSize: 24
+                        font.weight: Font.DemiBold
                     }
 
                     RowLayout {
+                        Layout.fillWidth: true
                         spacing: 14
 
                         AvatarChip {
-                            size: 58
+                            size: 64
                             name: sessionFacade.meName
                             instrument: sessionFacade.meInstrument
                             highlight: true
                         }
 
-                        Column {
-                            spacing: 3
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
                             Text {
+                                Layout.fillWidth: true
                                 text: sessionFacade.meName
                                 color: Theme.ink
                                 font.family: Theme.displayFont
-                                font.pixelSize: 24
+                                font.pixelSize: 28
+                                elide: Text.ElideRight
                             }
+
                             Text {
-                                text: sessionFacade.meInstrument
+                                Layout.fillWidth: true
+                                text: sessionFacade.meInstrument + " / " + sessionFacade.meRegion
                                 color: Theme.inkFaint
-                                font.family: Theme.uiFont
-                                font.pixelSize: 12
+                                font.family: Theme.monoFont
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
                             }
                         }
                     }
 
-                    Text {
-                        text: qsTr("입력 레벨")
-                        color: Theme.inkFaint
-                        font.family: Theme.uiFont
-                        font.pixelSize: 12
-                    }
-
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 10
-                        radius: 5
-                        color: Theme.background
-                        border.color: Theme.line
+                        Layout.preferredHeight: 12
+                        radius: 6
+                        color: Theme.panelInset
+                        border.color: "#5b626d"
 
                         Rectangle {
-                            width: parent.width * Math.max(0.04, deviceFacade.inputLevel)
+                            width: Math.max(parent.width * 0.08, parent.width * deviceFacade.inputLevel)
                             height: parent.height
-                            radius: 5
+                            radius: parent.radius
                             color: Theme.gold
                         }
                     }
 
                     CardPanel {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 132
+                        Layout.preferredHeight: 168
 
                         Column {
                             anchors.fill: parent
@@ -155,10 +113,10 @@ Item {
                             spacing: 10
 
                             Text {
-                                text: qsTr("세션 정보")
+                                text: qsTr("Room")
                                 color: Theme.ink
                                 font.family: Theme.displayFont
-                                font.pixelSize: 20
+                                font.pixelSize: 24
                             }
 
                             Text {
@@ -177,43 +135,173 @@ Item {
 
                             Text {
                                 text: qsTr("템포 / %1 BPM").arg(sessionFacade.roomBpm)
-                                color: Theme.inkSoft
+                                color: Theme.gold
                                 font.family: Theme.monoFont
                                 font.pixelSize: 12
                             }
                         }
                     }
+
+                    StatusBadge {
+                        text: sessionFacade.roomLive ? qsTr("LIVE") : qsTr("READY")
+                        tone: sessionFacade.roomLive ? "good" : "gold"
+                    }
                 }
             }
 
-            ScrollView {
-                id: participantScroll
-                Layout.row: root.layoutMode === 1 ? 1 : 0
-                Layout.column: root.layoutMode === 1 ? 0 : 1
-                Layout.columnSpan: 1
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumWidth: root.layoutMode === 3 ? 420 : 0
-                clip: true
+                spacing: root.pagePadding
 
-                contentWidth: availableWidth
+                CardPanel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 300
+                    clip: true
 
-                Item {
-                    width: Math.max(participantScroll.availableWidth, 0)
-                    implicitHeight: participantCards.implicitHeight + root.outerPadding * 2
+                    Item {
+                        anchors.fill: parent
+
+                        MistyBackdrop {
+                            anchors.fill: parent
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#00000000" }
+                                GradientStop { position: 0.52; color: "#48090c10" }
+                                GradientStop { position: 1.0; color: "#bd08090e" }
+                            }
+                        }
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 24
+                            spacing: 12
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: sessionFacade.roomLive ? "ROOM / LIVE" : "ROOM / READY"
+                                    color: Theme.gold
+                                    font.family: Theme.monoFont
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                }
+
+                                MetricPill {
+                                    value: sessionFacade.roomRtt
+                                    large: true
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: sessionFacade.roomName
+                                color: Theme.ink
+                                font.family: Theme.displayFont
+                                font.pixelSize: root.stageTitleSize
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
+                            }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: qsTr("%1 · %2 BPM · %3 ms")
+                                      .arg(sessionFacade.roomHost)
+                                      .arg(sessionFacade.roomBpm)
+                                      .arg(sessionFacade.roomRtt)
+                                    color: Theme.inkSoft
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 16
+                                    elide: Text.ElideRight
+                                }
+
+                            WaveformStrip {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 86
+                                bars: 54
+                                seed: 11
+                                barColor: sessionFacade.roomLive ? Theme.good : Theme.steel
+                            }
+
+                            Item { Layout.fillHeight: true }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 12
+
+                                StatusBadge {
+                                    text: sessionFacade.roomRegion
+                                    tone: "gold"
+                                }
+
+                                StatusBadge {
+                                    text: qsTr("%1 BPM").arg(sessionFacade.roomBpm)
+                                    tone: "good"
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                PrimaryButton {
+                                    compact: true
+                                    variant: "ghost"
+                                    text: qsTr("오디오")
+                                    onClicked: appState.navigate("audio")
+                                }
+
+                                PrimaryButton {
+                                    compact: true
+                                    text: qsTr("연결 상태")
+                                    onClicked: appState.navigate("network")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardPanel {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
                     ColumnLayout {
-                        id: participantCards
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: root.outerPadding
-                        spacing: 14
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 12
 
-                        Repeater {
+                        RowLayout {
+                            Layout.fillWidth: true
+
+                            Text {
+                                text: qsTr("참가자")
+                                color: Theme.ink
+                                font.family: Theme.displayFont
+                                font.pixelSize: 24
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Text {
+                                text: qsTr("지역 / RTT")
+                                color: Theme.inkFaint
+                                font.family: Theme.monoFont
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        ListView {
+                            id: participantList
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 10
                             model: participantModel
 
-                            CardPanel {
+                            delegate: Rectangle {
                                 id: participantCard
                                 required property int index
                                 required property string name
@@ -221,25 +309,30 @@ Item {
                                 required property string region
                                 required property int rtt
 
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 92
+                                width: participantList.width
+                                height: 86
+                                radius: 12
+                                color: "#12161b"
+                                border.color: "#616975"
+                                border.width: 1
 
                                 RowLayout {
                                     anchors.fill: parent
-                                    anchors.margins: 16
-                                    spacing: 16
+                                    anchors.margins: 14
+                                    spacing: 14
 
                                     AvatarChip {
-                                        size: 44
+                                        size: 42
                                         name: participantCard.name
                                         instrument: participantCard.instrument
                                     }
 
-                                    Column {
-                                        Layout.preferredWidth: 120
-                                        spacing: 3
+                                    ColumnLayout {
+                                        Layout.preferredWidth: 150
+                                        spacing: 2
+
                                         Text {
-                                            width: parent.width
+                                            Layout.fillWidth: true
                                             text: participantCard.name
                                             color: Theme.ink
                                             font.family: Theme.uiFont
@@ -247,9 +340,10 @@ Item {
                                             font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                         }
+
                                         Text {
-                                            width: parent.width
-                                            text: participantCard.instrument + " / " + participantCard.region
+                                            Layout.fillWidth: true
+                                            text: participantCard.instrument
                                             color: Theme.inkFaint
                                             font.family: Theme.monoFont
                                             font.pixelSize: 10
@@ -260,12 +354,24 @@ Item {
                                     WaveformStrip {
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: 34
-                                        bars: 44
-                                        seed: participantCard.index + 4
+                                        bars: 40
+                                        seed: index + 5
                                     }
 
-                                    MetricPill {
-                                        value: participantCard.rtt
+                                    ColumnLayout {
+                                        Layout.alignment: Qt.AlignRight
+                                        spacing: 4
+
+                                        Text {
+                                            text: participantCard.region
+                                            color: Theme.inkSoft
+                                            font.family: Theme.monoFont
+                                            font.pixelSize: 10
+                                        }
+
+                                        MetricPill {
+                                            value: participantCard.rtt
+                                        }
                                     }
                                 }
                             }
@@ -274,81 +380,67 @@ Item {
                 }
             }
 
-            Rectangle {
-                Layout.row: root.layoutMode === 3 ? 0 : (root.layoutMode === 2 ? 1 : 2)
-                Layout.column:  root.layoutMode === 3 ? 2 : 0
-                Layout.columnSpan: root.layoutMode === 2 ? 2 : 1
-                Layout.preferredWidth: root.rightPanelWidth
-                Layout.minimumWidth: 260
-                Layout.maximumWidth: 340
-                Layout.fillWidth: root.layoutMode !== 3
-                Layout.fillHeight: root.layoutMode === 3
-                Layout.preferredHeight: root.layoutMode === 3 ? -1 : (root.layoutMode === 2 ? 240 : 280)
-                color: Theme.backgroundDeep
-                border.color: Theme.line
-                border.width: 1
+            CardPanel {
+                Layout.fillHeight: true
+                        Layout.preferredWidth: root.rightPanelWidth
+                Layout.minimumWidth: 280
+                Layout.maximumWidth: 360
+                raised: true
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 16
+                    anchors.margins: 18
                     spacing: 12
 
                     Text {
                         text: qsTr("채팅")
                         color: Theme.ink
                         font.family: Theme.displayFont
-                        font.pixelSize: 22
+                        font.pixelSize: 24
                     }
 
-                    ScrollView {
-                        id: chatScroll
+                    ListView {
+                        id: chatList
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
-                        contentWidth: availableWidth
+                        spacing: 10
+                        model: root.chatSeed
 
-                        Item {
-                            width: Math.max(chatScroll.availableWidth, 0)
-                            implicitHeight: chatColumn.implicitHeight
+                        delegate: Rectangle {
+                            required property var modelData
 
-                            ColumnLayout {
+                            width: chatList.width
+                            height: chatColumn.implicitHeight + 24
+                            radius: 12
+                            color: modelData.mine ? "#233148" : "#111419"
+                            border.color: modelData.mine ? Theme.gold : "#5e6671"
+                            border.width: 1
+
+                            Column {
                                 id: chatColumn
-                                width: parent.width
-                                spacing: 10
+                                width: parent.width - 24
+                                anchors.left: parent.left
+                                anchors.leftMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 4
 
-                                Repeater {
-                                    model: chatSeed
+                                Text {
+                                    width: parent.width
+                                    text: modelData.who + " / " + modelData.time
+                                    color: modelData.mine ? Theme.gold : Theme.inkFaint
+                                    font.family: Theme.monoFont
+                                    font.pixelSize: 10
+                                    elide: Text.ElideRight
+                                }
 
-                                    Rectangle {
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        implicitHeight: msg.implicitHeight + 26
-                                        radius: 10
-                                        color: modelData.mine ? "#20365a" : Theme.panel
-                                        border.color: modelData.mine ? Theme.gold : Theme.line
-                                        border.width: 1
-
-                                        Column {
-                                            anchors.fill: parent
-                                            anchors.margins: 12
-                                            spacing: 4
-                                            Text {
-                                                text: modelData.who + " / " + modelData.time
-                                                color: modelData.mine ? Theme.gold : Theme.inkFaint
-                                                font.family: Theme.monoFont
-                                                font.pixelSize: 10
-                                            }
-                                            Text {
-                                                id: msg
-                                                width: parent.width
-                                                wrapMode: Text.WordWrap
-                                                text: modelData.text
-                                                color: Theme.ink
-                                                font.family: Theme.uiFont
-                                                font.pixelSize: 13
-                                            }
-                                        }
-                                    }
+                                Text {
+                                    width: parent.width
+                                    text: modelData.text
+                                    color: Theme.ink
+                                    font.family: Theme.uiFont
+                                    font.pixelSize: 13
+                                    wrapMode: Text.WordWrap
                                 }
                             }
                         }
@@ -356,31 +448,27 @@ Item {
 
                     PrimaryButton {
                         Layout.fillWidth: true
-                        compact: false
                         variant: "ghost"
-                        text: qsTr("메시지 입력은 다음 단계")
+                        text: qsTr("메시지")
                     }
                 }
             }
         }
 
-        Rectangle {
+        CardPanel {
             Layout.fillWidth: true
-            Layout.preferredHeight: 72
-            color: Theme.backgroundDeep
-            border.color: Theme.line
-            border.width: 1
+            Layout.preferredHeight: 78
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 18
-                spacing: 12
+                anchors.margins: 16
+                spacing: 14
 
                 Text {
                     text: qsTr("BPM %1").arg(sessionFacade.roomBpm)
                     color: Theme.ink
                     font.family: Theme.displayFont
-                    font.pixelSize: 28
+                    font.pixelSize: 30
                 }
 
                 Item { Layout.fillWidth: true }

@@ -13,7 +13,10 @@ Rectangle {
                                      : Theme.gold
 
     radius: 999
-    color: "transparent"
+    gradient: Gradient {
+        GradientStop { position: 0.0; color: "#23272d" }
+        GradientStop { position: 1.0; color: "#111419" }
+    }
     border.color: toneColor
     border.width: 1
     implicitHeight: 28
